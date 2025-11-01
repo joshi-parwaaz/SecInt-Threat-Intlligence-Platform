@@ -1,333 +1,403 @@
-# 🛡️ SecInt - Dark Web Threat Intelligence System
+# SecInt v2 - Threat Intelligence Platform
 
-> **A production-ready threat intelligence platform simulating dark web intelligence gathering using verified open-source cybersecurity datasets.**
+<div align="center">
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![React 18](https://img.shields.io/badge/react-18-61dafb.svg)](https://reactjs.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.104-009688.svg)](https://fastapi.tiangolo.com/)
-[![Docker](https://img.shields.io/badge/docker-ready-2496ed.svg)](https://www.docker.com/)
+![SecInt v2](https://img.shields.io/badge/SecInt-v2.0-blue?style=for-the-badge)
+![Python](https://img.shields.io/badge/Python-3.11-green?style=for-the-badge&logo=python)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-teal?style=for-the-badge&logo=fastapi)
+![React](https://img.shields.io/badge/React-18.0-61DAFB?style=for-the-badge&logo=react)
+![MongoDB](https://img.shields.io/badge/MongoDB-Latest-green?style=for-the-badge&logo=mongodb)
 
-**College Capstone Project** | **Security Intelligence** | **Third Year**
+**Real-time Threat Intelligence Aggregation, Enrichment & Analysis Platform**
 
----
+[Features](#features) • [Architecture](#architecture) • [Installation](#installation) • [Usage](#usage) • [API Documentation](#api-documentation)
 
-## 📋 Table of Contents
-
-- [Overview](#overview)
-- [Features](#features)
-- [Architecture](#architecture)
-- [Quick Start](#quick-start)
-- [Documentation](#documentation)
-- [Datasets](#datasets)
-- [Demo](#demo)
-- [Contributing](#contributing)
-- [License](#license)
-- [Team](#team)
+</div>
 
 ---
 
 ## 🎯 Overview
 
-SecInt is an **end-to-end threat intelligence simulation system** designed to demonstrate real-world cybersecurity data pipeline architecture. It processes **350,000+ real threat records** from verified open-source datasets, classifies them using NLP, and visualizes insights through an interactive dashboard.
+SecInt v2 is a comprehensive threat intelligence platform that automatically collects, enriches, scores, and analyzes Indicators of Compromise (IOCs) from multiple threat feeds. It provides real-time threat intelligence with automated severity scoring, SIEM integration, and an intuitive dashboard for security operations.
 
-**Key Capabilities:**
-- ✅ Automated dataset ingestion from multiple sources
-- ✅ Real-time threat classification using machine learning
-- ✅ Scalable message queue architecture with Apache Kafka
-- ✅ Interactive analytics dashboard with real-time updates
-- ✅ Production-grade error handling and monitoring
-- ✅ Full Docker containerization for one-command deployment
+### Key Capabilities
+
+- 🌐 **Multi-Source Intelligence** - Aggregates IOCs from AlienVault OTX, VirusTotal, URLhaus, AbuseIPDB
+- 🔍 **Intelligent Enrichment** - Type-specific enrichment with reputation scoring and malware analysis
+- ⚡ **Automated Severity Scoring** - Weighted algorithm producing CRITICAL/HIGH/MEDIUM/LOW ratings
+- 💾 **MongoDB Storage** - 17,500+ IOCs with deduplication and advanced querying
+- 📊 **Interactive Dashboard** - Real-time visualization with filters and charts
+- 🔐 **SIEM Integration** - CEF and Syslog export formats for Splunk, QRadar, pfSense
+- 📈 **API Health Monitoring** - Real-time status tracking of all threat feed APIs
+- 📄 **Report Generation** - CSV, JSON, HTML exports with executive summaries
 
 ---
 
 ## ✨ Features
 
-### Backend (FastAPI + MongoDB)
-- **Asynchronous REST API** with automatic OpenAPI documentation
-- **MongoDB integration** using Motor (async driver) for high-performance queries
-- **Aggregation pipelines** for real-time analytics
-- **Full-text search** with MongoDB text indexes
-- **Request validation** with Pydantic models
+### 1. **Real Threat Intelligence Ingestion**
+- Automated collection from AlienVault OTX pulses
+- URLhaus malware distribution tracking
+- Concurrent API calls for high performance
+- Intelligent deduplication (17,517 unique IOCs ingested)
+- Support for: Domains, IP addresses, File hashes (MD5/SHA1/SHA256), URLs, CVEs
 
-### Frontend (React + Tailwind CSS)
-- **Real-time dashboard** with auto-refresh (30s polling)
-- **Interactive charts** using Recharts (pie charts, bar charts, trends)
-- **Debounced search** for efficient threat lookup
-- **Responsive design** with Tailwind CSS
-- **Error handling** with retry logic and backoff
+### 2. **IOC Enrichment & Severity Scoring**
+- **Type-Specific Enrichment:**
+  - IPs: AbuseIPDB confidence scores + VirusTotal reputation
+  - Hashes: VirusTotal malware analysis with family classification
+  - Domains: Reputation scoring and threat categorization
+  - URLs: Malware distribution and phishing detection
 
-### Data Pipeline (Kafka + NLP)
-- **Kafka message queue** for asynchronous threat processing
-- **NLP classification** using TF-IDF + Multinomial Naive Bayes
-- **Dataset ingestion** supporting CSV, JSON, and JSONL formats
-- **Error tracking** with failed file logging to MongoDB
-- **Scalable architecture** processing 350k+ records
+- **Weighted Severity Algorithm:**
+  - VirusTotal detection rate (50 points if >80%)
+  - Malware family criticality (40 points for high-threat families)
+  - AbuseIPDB confidence (30 points if >90%)
+  - IOC recency (15 points if <7 days old)
+  
+- **Current Threat Landscape:**
+  - 6 CRITICAL threats (score ≥80)
+  - 27 HIGH threats (score ≥60)
+  - 46 MEDIUM threats (score ≥40)
 
-### DevOps (Docker Compose)
-- **7-service orchestration** (MongoDB, Kafka, Backend, Frontend, Ingestion, Classifier, Zookeeper)
-- **Health checks** ensuring services start in correct order
-- **Volume management** for data persistence
-- **Network isolation** with Docker bridge network
-- **One-command deployment** for development and demos
+### 3. **Database Storage**
+- MongoDB with async motor driver
+- 17,517 IOCs stored with rich metadata:
+  - `correlation_id` - UUID for SIEM tracking
+  - `ioc_category` - Normalized type classification
+  - `threat_actor` - Attribution from pulse metadata
+  - `last_updated` - Timestamp tracking
+  - `vt_detections` - Normalized "X/Y" format
+  - `abuse_score` - AbuseIPDB confidence
+- Advanced querying with filters, pagination, search
+
+### 4. **Report Generation**
+- **CSV Export** - Tabular format for spreadsheet analysis
+- **JSON Export** - Structured data for automation
+- **HTML Reports** - Formatted reports with executive summaries
+- **Blocklists** - Firewall-ready IP/domain/hash lists
+
+### 5. **SIEM Integration**
+- **CEF Format** - Common Event Format for Splunk, QRadar, ArcSight
+- **Syslog Format** - RFC 5424 compliant for pfSense, Fortinet
+- Includes severity, correlation IDs, threat actor attribution
+
+### 6. **API Health Monitoring**
+- Real-time status of all threat feed APIs
+- Quota tracking (VirusTotal: 500/day)
+- Rate limit monitoring
+- Connection status indicators
+
+### 7. **Interactive Dashboard**
+- **IOC Explorer** - Browse and filter 17.5K IOCs
+- **Charts** - Severity distribution, IOC type breakdown
+- **Top Threats** - Critical/High priority IOCs for immediate action
+- **Blocklist Download** - One-click export for firewall rules
+- **Auto-refresh** - 30-second updates for real-time monitoring
 
 ---
 
 ## 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         SecInt System                            │
-└─────────────────────────────────────────────────────────────────┘
-
-┌──────────────┐     ┌─────────────┐     ┌──────────────┐
-│  Dataset     │────▶│  Ingestion  │────▶│    Kafka     │
-│   Files      │     │   Service   │     │  (Message    │
-│ (CSV/JSON)   │     │  (Python)   │     │   Queue)     │
-└──────────────┘     └─────────────┘     └──────┬───────┘
-                                                 │
-                                                 ▼
-                                         ┌──────────────┐
-                                         │  Classifier  │
-                                         │   Service    │
-                                         │ (NLP/TF-IDF) │
-                                         └──────┬───────┘
-                                                │
-                                                ▼
-┌──────────────┐     ┌─────────────┐     ┌──────────────┐
-│   React      │◀────│   FastAPI   │◀────│   MongoDB    │
-│  Dashboard   │     │   Backend   │     │  (Database)  │
-│ (Frontend)   │     │    (API)    │     │              │
-└──────────────┘     └─────────────┘     └──────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    SecInt v2 Platform                        │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐  │
+│  │ Threat Feeds │───▶│  Enrichment  │───▶│   Severity   │  │
+│  │  (OTX, VT,   │    │   Service    │    │   Scoring    │  │
+│  │  URLhaus)    │    │              │    │              │  │
+│  └──────────────┘    └──────────────┘    └──────────────┘  │
+│         │                    │                    │         │
+│         └────────────────────┴────────────────────┘         │
+│                             ▼                                │
+│                    ┌──────────────┐                         │
+│                    │   MongoDB    │                         │
+│                    │  (17.5K IOCs)│                         │
+│                    └──────────────┘                         │
+│                             │                                │
+│         ┌───────────────────┴───────────────────┐          │
+│         ▼                   ▼                   ▼           │
+│  ┌──────────┐       ┌──────────┐       ┌──────────┐       │
+│  │ FastAPI  │       │  Reports │       │   SIEM   │       │
+│  │   REST   │       │  Export  │       │  Export  │       │
+│  │   API    │       │(CSV/JSON)│       │(CEF/Syslog)│      │
+│  └──────────┘       └──────────┘       └──────────┘       │
+│         │                                                   │
+│         ▼                                                   │
+│  ┌──────────────────────────────────────────────┐         │
+│  │         React Dashboard (Port 3000)          │         │
+│  │   - IOC Explorer with Filters                │         │
+│  │   - Charts & Visualizations                  │         │
+│  │   - Top Threats & Blocklists                 │         │
+│  │   - API Health Status                        │         │
+│  └──────────────────────────────────────────────┘         │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-**Data Flow:**
-1. **Ingestion** → Reads CSV/JSON files from `/data` directory
-2. **Kafka** → Queues messages for asynchronous processing
-3. **Classifier** → Consumes messages, applies NLP classification
-4. **MongoDB** → Stores classified threats
-5. **Backend API** → Serves aggregated data via REST endpoints
-6. **Frontend** → Visualizes insights in real-time dashboard
+---
+
+## � Prerequisites
+
+- **Python 3.11+**
+- **Node.js 16+** & npm
+- **MongoDB** (localhost:27017 or remote)
+- **API Keys** (free tier available):
+  - AlienVault OTX API Key
+  - VirusTotal API Key
+  - AbuseIPDB API Key
+  - URLhaus API Key (optional)
 
 ---
 
 ## 🚀 Quick Start
 
-### Prerequisites
+### 1. Clone the Repository
 
-Ensure you have:
-- ✅ **Docker Desktop** installed and running ([Download](https://www.docker.com/products/docker-desktop))
-- ✅ **Git** installed
-- ✅ **4GB+ RAM** available
-- ✅ **Internet connection** (for first-time Docker image pulls)
-
-### Installation
-
-```bash
-# 1. Clone the repository
-git clone https://github.com/YOUR_USERNAME/SecInt.git
+```powershell
+git clone https://github.com/joshi-parwaaz/Dark-Web-Threat-Crawler.git
 cd SecInt
-
-# 2. Copy environment configuration
-cp .env.example .env
-
-# 3. Start all services (builds Docker images on first run)
-docker-compose up --build -d
-
-# 4. Verify services are running
-docker ps
 ```
 
-### Access the System
+### 2. Backend Setup
 
-- **Frontend Dashboard**: http://localhost:3000
-- **Backend API Documentation**: http://localhost:8000/docs
-- **API Health Check**: http://localhost:8000/health
-
-**⏱️ Wait 1-2 minutes** for initial data ingestion and classification, then refresh the dashboard.
-
-### Stopping the System
-
-```bash
-# Stop all containers (preserves data)
-docker-compose down
-
-# Stop and remove all data (fresh start)
-docker-compose down -v
-```
-
----
-
-## 📚 Documentation
-
-Comprehensive documentation is available in the `docs/` folder:
-
-### Getting Started
-- **[SETUP.md](./SETUP.md)** - Complete installation and troubleshooting guide
-- **[CONTRIBUTING.md](./CONTRIBUTING.md)** - Development workflow and code guidelines
-
-### For Demos & Presentations
-- **[DEMO_GUIDE.md](./DEMO_GUIDE.md)** - Step-by-step demo walkthrough with talking points
-- **[DEMO_CHEATSHEET.md](./DEMO_CHEATSHEET.md)** - Quick reference card for presentations
-
-### Technical Documentation (Viva Preparation)
-- **[Backend API](./docs/technical_explanation/02_backend.md)** - FastAPI, MongoDB, endpoints, aggregations
-- **[Data Pipeline](./docs/)** - Ingestion, Kafka, classification (see docs index)
-
-**📖 Full documentation index**: [docs/README.md](./docs/README.md)
-
----
-
-## 📊 Datasets
-
-This project uses **350,000+ real cybersecurity threat records** from verified open-source datasets:
-
-| Dataset | Source | Records | Description |
-|---------|--------|---------|-------------|
-| **Phishing Emails** | Kaggle | ~201,000 | Email phishing campaigns and spam |
-| **ExploitDB** | Waiper/ExploitDB_DataSet | ~140,000 | CVE exploits and vulnerability data |
-| **Malware MOTIF** | Booz Allen Hamilton | ~7,900 | Malware family classifications |
-| **Open-MalSec** | tegridydev/open-malsec | ~530 | Open-source malware intelligence |
-
-**Dataset Structure:**
-```
-data/
-├── phishing_emails/
-│   ├── README.md
-│   └── raw/
-│       └── *.csv
-├── exploitdb/
-│   ├── README.md
-│   └── raw/
-│       └── *.json
-├── malware_motif/
-│   └── raw/
-│       └── *.jsonl
-└── open_malsec/
-    └── raw/
-        └── *.json
-```
-
-**Note:** Raw dataset files are **not included** in the repository due to size (~500MB). Download instructions are in each dataset's `README.md`.
-
----
-
-## 🎥 Demo
-
-### Live Demo (After Setup)
-
-1. **Dashboard** (http://localhost:3000)
-   - View threat statistics and distributions
-   - Interactive pie and bar charts
-   - Real-time updates every 30 seconds
-
-2. **Datasets Page**
-   - Per-dataset threat counts
-   - Ingestion logs with failed file tracking
-   - Latest update timestamps
-
-3. **Threats Browser**
-   - Search threats by content (debounced)
-   - Filter by type and dataset
-   - View detailed threat records
-
-### Demo Commands
-
-```bash
-# Check ingestion progress
-docker logs secint-ingestion
-
-# Watch classification in real-time
-docker logs secint-classifier -f
-
-# Verify data in database
-docker exec secint-backend python -c "from pymongo import MongoClient; c=MongoClient('mongodb://mongo:27017'); print('Total threats:', c['secint']['threats'].count_documents({}))"
-
-# API query example
-curl http://localhost:8000/api/analytics/summary
-```
-
-**Full demo script with talking points**: [DEMO_GUIDE.md](./DEMO_GUIDE.md)
-
----
-
----
-
-## 🔧 Local Development
-
-Want to run components individually? See [SETUP.md](./SETUP.md#local-development) for detailed instructions.
-
-### Backend Only
-
-```bash
+```powershell
 cd backend
+
+# Create virtual environment
+python -m venv venv
+.\venv\Scripts\activate
+
+# Install dependencies
 pip install -r requirements.txt
-uvicorn main:app --reload
 ```
 
-### Frontend Only
+### 3. Frontend Setup
 
-```bash
+```powershell
 cd frontend
+
+# Install dependencies
 npm install
-npm start
 ```
 
-### Services Only
+### 4. Configure API Keys
 
-```bash
-# Run ingestion (requires Kafka)
-python backend/services/ingestion.py
+Create a `.env` file in the root directory:
 
-# Run classifier (requires Kafka + MongoDB)
-python backend/services/classifier.py
+```env
+# MongoDB Configuration
+MONGO_URI=mongodb://localhost:27017
+MONGO_DB_NAME=secint
+
+# Threat Intelligence APIs
+OTX_API_KEY=your_otx_api_key_here
+VIRUSTOTAL_API_KEY=your_vt_api_key_here
+ABUSEIPDB_API_KEY=your_abuseipdb_key_here
+URLHAUS_API_KEY=your_urlhaus_key_here
 ```
+
+**Get your API keys:**
+- [AlienVault OTX](https://otx.alienvault.com/) - Free, unlimited
+- [VirusTotal](https://www.virustotal.com/gui/join-us) - Free 500 requests/day
+- [AbuseIPDB](https://www.abuseipdb.com/register) - Free 1,000 requests/day
+- [URLhaus](https://urlhaus.abuse.ch/) - Free with registration
+
+### 5. Start MongoDB
+
+```powershell
+# Windows (if installed as service)
+net start MongoDB
+
+# Or use Docker
+docker run -d -p 27017:27017 --name mongodb mongo:latest
+```
+
+### 6. Start the Platform
+
+```powershell
+# Start backend (http://localhost:8000)
+.\start-backend.ps1
+
+# Start frontend (http://localhost:3000)
+.\start-frontend.ps1
+
+# Run threat intelligence ingestion
+.\run-ingestion.ps1
+```
+
+### 7. Access the Platform
+
+- **Dashboard:** http://localhost:3000
+- **API Docs:** http://localhost:8000/docs
+- **Health Check:** http://localhost:8000/health/apis
 
 ---
 
-## 🔄 Re-running Ingestion
-
-The ingestion service runs once when the container starts. To re-ingest datasets:
-
-```bash
-# Restart the ingestion container
-docker-compose restart ingestion
-
-# Check ingestion logs
-docker logs secint-ingestion
-
-# View ingestion history in MongoDB
-docker exec secint-backend python -c "from pymongo import MongoClient; c=MongoClient('mongodb://mongo:27017'); [print(log) for log in c['secint']['ingestion_logs'].find().sort('timestamp', -1).limit(5)]"
-```
-
-**Common Issues:** See [SETUP.md - Troubleshooting](./SETUP.md#troubleshooting) for solutions to:
-- NoBrokersAvailable errors
-- Dataset path not found
-- JSON/CSV parsing errors
-- No data appearing in frontend
-
----
-
-## 📖 API Endpoints
+## 📚 API Documentation
 
 Full interactive documentation at: **http://localhost:8000/docs**
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/` | API health check |
-| `GET` | `/api/threats` | List threats with filters |
-| `GET` | `/api/threats/{id}` | Get specific threat |
-| `GET` | `/api/analytics/summary` | Analytics overview |
-| `GET` | `/api/datasets/status` | Dataset ingestion status |
-| `GET` | `/api/datasets/logs` | Ingestion logs |
+### Core Endpoints
 
-**Example Query:**
-```bash
-# Get all malware threats
-curl "http://localhost:8000/api/threats?threat_type=malware&limit=10"
+#### Get IOCs
+```http
+GET /api/iocs?limit=100&ioc_type=domain&severity=CRITICAL
+```
 
-# Get analytics summary
-curl http://localhost:8000/api/analytics/summary
+**Query Parameters:**
+- `ioc_type` - Filter by type (ipv4, domain, hash, url, cve)
+- `severity` - Filter by severity (CRITICAL, HIGH, MEDIUM, LOW)
+- `limit` - Results per page (max 500)
+- `offset` - Pagination offset
+
+**Response:**
+```json
+{
+  "iocs": [
+    {
+      "ioc_value": "malware.example.com",
+      "ioc_type": "domain",
+      "severity": "CRITICAL",
+      "severity_score": 85,
+      "malware_family": "trojan.reverseshell",
+      "vt_detections": "55/76",
+      "correlation_id": "uuid-here",
+      "threat_actor": "threat-actor-name",
+      "first_seen": "2025-10-31T12:00:00Z"
+    }
+  ],
+  "total": 17517
+}
+```
+
+#### Get Statistics
+```http
+GET /api/iocs/stats
+```
+
+**Response:**
+```json
+{
+  "total_iocs": 17517,
+  "by_type": {
+    "domain": 17265,
+    "sha256": 122,
+    "url": 116,
+    "cve": 9,
+    "ipv4": 5
+  },
+  "by_severity": {
+    "CRITICAL": 6,
+    "HIGH": 27,
+    "MEDIUM": 46,
+    "LOW": 17438
+  },
+  "critical_count": 6,
+  "high_count": 27
+}
+```
+
+#### Download Blocklist
+```http
+GET /api/reports/blocklist
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "ipv4_addresses": [],
+    "domains": [],
+    "urls": [],
+    "file_hashes": {
+      "md5": [],
+      "sha1": [],
+      "sha256": ["hash1", "hash2", ...]
+    }
+  },
+  "metadata": {
+    "generated_at": "2025-10-31T12:00:00Z",
+    "total_iocs": 33
+  }
+}
+```
+
+#### Export Reports
+```http
+GET /api/reports/download/csv
+GET /api/reports/download/json
+GET /api/reports/download/html
+```
+
+#### SIEM Export
+```http
+GET /api/reports/export/cef
+GET /api/reports/export/syslog
+```
+
+#### API Health
+```http
+GET /health/apis
+```
+
+**Response:**
+```json
+{
+  "otx": {
+    "status": "ok",
+    "quota": "unlimited"
+  },
+  "virustotal": {
+    "status": "ok",
+    "quota": "500/day"
+  },
+  "abuseipdb": {
+    "status": "rate_limited",
+    "quota": "1000/day"
+  }
+}
+```
+
+---
+
+## 🗂️ Project Structure
+
+```
+SecInt/
+├── backend/
+│   ├── main.py                 # FastAPI application entry
+│   ├── database.py             # MongoDB connection
+│   ├── models.py               # Pydantic models
+│   ├── requirements.txt        # Python dependencies
+│   ├── routers/
+│   │   ├── iocs.py            # IOC endpoints
+│   │   └── reports.py         # Export/SIEM endpoints
+│   └── services/
+│       ├── threat_feeds.py     # OTX/URLhaus integration and API helpers
+│       ├── enricher.py         # VT/AbuseIPDB enrichment orchestrator
+│       ├── severity_scorer.py  # Threat severity algorithm (rule-based)
+│       ├── direct_ingest.py    # Local ingestion pipeline (no Kafka)
+│       └── report_generator.py # CSV/JSON/HTML + SIEM export
+├── frontend/
+│   ├── package.json
+│   ├── public/
+│   │   └── index.html
+│   └── src/
+│       ├── App.js             # Main React app
+│       ├── index.js
+│       └── components/
+│           ├── Dashboard.js    # Unified modern dashboard (Explorer + API health)
+│           ├── IOCExplorer.js  # Legacy explorer (reference)
+│           ├── APIStatus.js    # Legacy API health (reference)
+│           └── ui/             # Shared UI primitives (Card, etc.)
+├── .env                        # API keys (create this)
+├── README.md
+├── start-backend.ps1
+├── start-frontend.ps1
+└── run-ingestion.ps1
 ```
 
 ---
@@ -339,9 +409,40 @@ curl http://localhost:8000/api/analytics/summary
 | **Frontend** | React 18, TailwindCSS, Recharts |
 | **Backend** | FastAPI, Uvicorn, Pydantic |
 | **Database** | MongoDB (Motor async driver) |
-| **Message Queue** | Apache Kafka + Zookeeper |
-| **ML/NLP** | scikit-learn (TF-IDF), Transformers |
-| **Container** | Docker, Docker Compose |
+| **Enrichment APIs** | VirusTotal, AbuseIPDB, URLhaus, AlienVault OTX |
+| **Deployment** | PowerShell scripts for Windows |
+
+---
+
+## 📊 Data Model
+
+### IOC Record Schema
+
+```python
+{
+  "ioc_value": str,              # The actual indicator
+  "ioc_type": str,               # ipv4, domain, sha256, url, cve
+  "ioc_category": str,           # filehash, ip, domain, url, other
+  "severity": str,               # CRITICAL, HIGH, MEDIUM, LOW
+  "severity_score": int,         # 0-100 weighted score
+  "correlation_id": str,         # UUID for SIEM correlation
+  "threat_actor": str,           # Attribution from OTX
+  "malware_family": str,         # Malware classification
+  "description": str,            # Threat description
+  "context": str,                # Additional context
+  "vt_detections": str,          # "X/Y" format
+  "vt_detection_rate": float,    # 0.0-1.0
+  "abuse_score": int,            # AbuseIPDB confidence
+  "source": str,                 # otx, urlhaus, virustotal
+  "first_seen": datetime,        # Discovery timestamp
+  "last_updated": datetime,      # Last modification
+  "sources": {                   # Raw enrichment data
+    "otx": {},
+    "virustotal": {},
+    "abuseipdb": {}
+  }
+}
+```
 
 ---
 
@@ -369,27 +470,34 @@ We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for:
 
 ## 📄 License
 
-This project is licensed under the **MIT License** - see the [LICENSE](./LICENSE) file for details.
+```mermaid
+flowchart LR
+  subgraph Feeds[External Threat Feeds]
+    OTX[AlienVault OTX]
+    URLH[URLhaus]
+    VT[VirusTotal]
+    ABIP[AbuseIPDB]
+  end
 
----
+  OTX --> ING[Direct Ingestion Service]
+  URLH --> ING
 
-## � Team
+  ING --> ENR[IOC Enricher (aiohttp)]
+  VT --> ENR
+  ABIP --> ENR
 
-**SecInt** – Security Intelligence Capstone Project
+  ENR --> SC[Severity Scorer]
+  SC --> DB[(MongoDB)]
 
-**Contributors:**
-- **Your Name** - Project Lead & Full Stack Development
-- *(Add teammates here)*
+  DB --> IOCAPI[/FastAPI Router: /api/iocs/*/]
+  DB --> RPTAPI[/FastAPI Router: /api/reports/*/]
 
-**Institution:** *(Your College/University)*  
-**Year:** 2024
+  RPTAPI --> RG[Report Generator\nCSV | JSON | HTML | CEF | Syslog]
+  IOCAPI --> FE[React Dashboard (3000)]
+  RPTAPI --> FE
 
----
-
-**🌟 If you found this project useful, please star the repository!**
-
----
-
-**📧 Questions or feedback?** Open an issue or reach out to the team.
+  AV[API Validator\n/health/apis] -.-> IOCAPI
+  AV -.-> RPTAPI
+```
 
 

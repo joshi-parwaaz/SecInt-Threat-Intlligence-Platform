@@ -34,6 +34,9 @@ build/
 # Environment Variables
 # ==========================================
 .env
+**/.env
+backend/.env
+frontend/.env
 .env.local
 .env.development.local
 .env.test.local
@@ -65,7 +68,7 @@ desktop.ini
 # ==========================================
 # Docker
 # ==========================================
-.dockerignore
+# (Commit .dockerignore if present)
 
 # ==========================================
 # Database / Data Files
@@ -158,3 +161,9 @@ kafka-logs/
 
 # Generated prompts (internal use only)
 generate_technical_explanation_prompt.txt
+
+# Runtime logs
+logs/*.log
+
+# Runtime logs
+logs/*.log

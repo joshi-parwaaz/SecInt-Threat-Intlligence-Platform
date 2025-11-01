@@ -5,7 +5,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.errors import ConnectionFailure
 import os
 
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://mongo:27017/secint")
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/secint")
 DB_NAME = "secint"
 
 client: AsyncIOMotorClient = None
@@ -38,3 +38,7 @@ def get_database():
 def get_collection(name: str):
     """Get a specific collection"""
     return db[name]
+
+def get_db_client():
+    """Get MongoDB client instance"""
+    return client
