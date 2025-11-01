@@ -156,7 +156,7 @@ SecInt v2 is a comprehensive threat intelligence platform that automatically col
 ### 1. Clone the Repository
 
 ```powershell
-git clone https://github.com/joshi-parwaaz/Dark-Web-Threat-Crawler.git
+git clone https://github.com/joshi-parwaaz/SecInt.git
 cd SecInt
 ```
 
@@ -184,18 +184,22 @@ npm install
 
 ### 4. Configure API Keys
 
-Create a `.env` file in the root directory:
+Create a `.env` file in the project root. The backend loads environment variables at startup (we use `python-dotenv`). Required keys used by the code are shown below — remove or leave empty any providers you don't use:
 
 ```env
-# MongoDB Configuration
-MONGO_URI=mongodb://localhost:27017
-MONGO_DB_NAME=secint
+# MongoDB connection (full URI)
+MONGO_URI=mongodb://localhost:27017/secint
 
-# Threat Intelligence APIs
+# Threat Intelligence API keys (leave blank if not available)
 OTX_API_KEY=your_otx_api_key_here
-VIRUSTOTAL_API_KEY=your_vt_api_key_here
-ABUSEIPDB_API_KEY=your_abuseipdb_key_here
-URLHAUS_API_KEY=your_urlhaus_key_here
+VIRUSTOTAL_API_KEY=your_virustotal_api_key_here
+ABUSEIPDB_API_KEY=your_abuseipdb_api_key_here
+URLHAUS_API_KEY=your_urlhaus_api_key_here  # optional; public endpoints are available
+
+# Optional / other runtime settings
+KAFKA_BROKER=localhost:9092
+API_PORT=8000
+REACT_APP_API_URL=http://localhost:8000
 ```
 
 **Get your API keys:**
@@ -216,15 +220,32 @@ docker run -d -p 27017:27017 --name mongodb mongo:latest
 
 ### 6. Start the Platform
 
+Run the backend and frontend directly (no PowerShell wrappers required). Open two terminals.
+
+Backend (development, auto-reload):
+
 ```powershell
-# Start backend (http://localhost:8000)
-.\start-backend.ps1
+cd backend
+# activate venv first if you created one
+# Windows
+.\venv\Scripts\Activate.ps1
+# then run
+python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
+```
 
-# Start frontend (http://localhost:3000)
-.\start-frontend.ps1
+Frontend (development):
 
-# Run threat intelligence ingestion
-.\run-ingestion.ps1
+```powershell
+cd frontend
+npm start
+```
+
+Run ingestion (optional) — if you prefer to run ingestion without the PowerShell script, call the Python ingestion script directly. Example (adjust path/name if you use a different script):
+
+```powershell
+cd backend
+python -m backend.scripts.backfill_iocs
+# or use the provided PowerShell wrapper if you prefer: .\run-ingestion.ps1
 ```
 
 ### 7. Access the Platform
