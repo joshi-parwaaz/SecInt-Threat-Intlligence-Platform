@@ -8,30 +8,204 @@
 ![React](https://img.shields.io/badge/React-18.0-61DAFB?style=for-the-badge&logo=react)
 ![MongoDB](https://img.shields.io/badge/MongoDB-Latest-green?style=for-the-badge&logo=mongodb)
 
-**Real-time Threat Intelligence Aggregation, Enrichment & Analysis Platform**
+**Real-time Threat Intelligence Aggregation & Analysis Platform**
 
-[Features](#features) • [Architecture](#architecture) • [Installation](#installation) • [Usage](#usage) • [API Documentation](#api-documentation)
+[Quick Start](#-quick-start) • [Features](#-features) • [API Docs](#-api-documentation) • [Screenshots](#-screenshots)
 
 </div>
 
 ---
 
-## 🎯 Overview
+## 🎯 What is SecInt?
 
-SecInt v2 is a comprehensive threat intelligence platform that automatically collects, enriches, scores, and analyzes Indicators of Compromise (IOCs) from multiple threat feeds. It provides real-time threat intelligence with automated severity scoring, SIEM integration, and an intuitive dashboard for security operations.
+SecInt v2 automatically collects, enriches, and scores **17,500+ Indicators of Compromise (IOCs)** from multiple threat feeds, providing security teams with actionable intelligence through an intuitive dashboard.
 
-### Key Capabilities
-
-- 🌐 **Multi-Source Intelligence** - Aggregates IOCs from AlienVault OTX, VirusTotal, URLhaus, AbuseIPDB
-- 🔍 **Intelligent Enrichment** - Type-specific enrichment with reputation scoring and malware analysis
-- ⚡ **Automated Severity Scoring** - Weighted algorithm producing CRITICAL/HIGH/MEDIUM/LOW ratings
-- 💾 **MongoDB Storage** - 17,500+ IOCs with deduplication and advanced querying
-- 📊 **Interactive Dashboard** - Real-time visualization with filters and charts
-- 🔐 **SIEM Integration** - CEF and Syslog export formats for Splunk, QRadar, pfSense
-- 📈 **API Health Monitoring** - Real-time status tracking of all threat feed APIs
-- 📄 **Report Generation** - CSV, JSON, HTML exports with executive summaries
+**In Action:**
+- 🔴 **6 CRITICAL** threats requiring immediate action
+- 🟠 **27 HIGH** priority threats for urgent response
+- 🟡 **46 MEDIUM** threats to monitor
+- 📊 **17,517** total IOCs tracked across 5 types
 
 ---
+
+## ✨ Key Features
+
+### 🌐 **Multi-Source Intelligence**
+Aggregates from AlienVault OTX, VirusTotal, URLhaus, AbuseIPDB with intelligent deduplication
+
+### ⚡ **Automated Severity Scoring**
+100-point weighted algorithm ranking threats by:
+- VirusTotal detection rates
+- Malware family criticality
+- AbuseIPDB confidence scores
+- Recency and multi-source confirmation
+
+### 📊 **Interactive Dashboard**
+- **Heatmap:** Severity × IOC Type visualization
+- **Charts:** Logarithmic distribution with data labels
+- **Insights:** Auto-generated threat analysis
+- **Real-time:** 30-second auto-refresh
+- **Filters:** Type, severity, search
+
+### 🔐 **SIEM Integration**
+Export to CEF (Splunk/QRadar) or Syslog (pfSense/Fortinet) formats
+
+### 📄 **Report Generation**
+CSV, JSON, HTML exports + firewall-ready blocklists
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Python 3.11+
+- Node.js 16+
+- MongoDB running on `localhost:27017`
+- API keys ([free tiers available](#get-api-keys))
+
+### Installation
+
+```bash
+# Clone repository
+git clone https://github.com/joshi-parwaaz/SecInt.git
+cd SecInt
+
+# Backend setup
+cd backend
+python -m venv venv
+.\venv\Scripts\activate  # Windows
+pip install -r requirements.txt
+
+# Frontend setup
+cd ../frontend
+npm install
+```
+
+### Configuration
+
+Create `.env` in project root:
+
+```env
+MONGO_URI=mongodb://localhost:27017/secint
+OTX_API_KEY=your_key_here
+VIRUSTOTAL_API_KEY=your_key_here
+ABUSEIPDB_API_KEY=your_key_here
+URLHAUS_API_KEY=optional
+```
+
+### Run
+
+**Terminal 1 - Backend:**
+```bash
+cd backend
+.\venv\Scripts\activate
+python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
+```
+
+**Terminal 2 - Frontend:**
+```bash
+cd frontend
+npm start
+```
+
+**Access:**
+- Dashboard: http://localhost:3000
+- API Docs: http://localhost:8000/docs
+
+---
+
+## 🔑 Get API Keys
+
+| Service | Limit | Link |
+|---------|-------|------|
+| AlienVault OTX | Unlimited | [Sign Up](https://otx.alienvault.com/) |
+| VirusTotal | 500/day | [Register](https://www.virustotal.com/gui/join-us) |
+| AbuseIPDB | 1000/day | [Create Account](https://www.abuseipdb.com/register) |
+| URLhaus | Unlimited | [Optional](https://urlhaus.abuse.ch/) |
+
+---
+
+## � API Documentation
+
+Full interactive docs at **http://localhost:8000/docs**
+
+### Quick Examples
+
+**Get all IOCs:**
+```http
+GET /api/iocs?limit=100
+```
+
+**Get critical threats:**
+```http
+GET /api/iocs?severity=CRITICAL
+```
+
+**Download blocklist:**
+```http
+GET /api/reports/blocklist
+```
+
+**Export to SIEM:**
+```http
+GET /api/reports/export/cef
+GET /api/reports/export/syslog
+```
+
+**Trigger fresh ingestion:**
+```http
+POST /api/ingestion/trigger
+```
+
+---
+
+## ️ Tech Stack
+
+**Frontend:** React 18, TailwindCSS, Recharts, Framer Motion  
+**Backend:** FastAPI, Uvicorn, Motor (async MongoDB)  
+**Database:** MongoDB  
+**APIs:** OTX, VirusTotal, AbuseIPDB, URLhaus
+
+---
+
+## � Documentation
+
+- **[Technical Documentation](./technical_documentation.md)** - Architecture, data models, scoring algorithm
+- **[API Reference](http://localhost:8000/docs)** - Interactive Swagger docs
+- **[Contributing Guide](./CONTRIBUTING.md)** - Development workflow
+
+---
+
+## 🔒 Security & Ethics
+
+✅ Uses public threat intelligence feeds only  
+✅ No live dark web access  
+✅ Educational/research purposes  
+✅ Network isolation recommended  
+
+---
+
+## 🤝 Contributing
+
+Pull requests welcome! Please read [CONTRIBUTING.md](./CONTRIBUTING.md) first.
+
+---
+
+## 🙏 Acknowledgments
+
+- AlienVault OTX for threat pulse data
+- URLhaus for malware distribution tracking
+- VirusTotal & AbuseIPDB for enrichment APIs
+
+---
+
+<div align="center">
+
+**Built with ❤️ for the cybersecurity community**
+
+[Report Bug](https://github.com/joshi-parwaaz/SecInt/issues) • [Request Feature](https://github.com/joshi-parwaaz/SecInt/issues)
+
+</div>
 
 ## ✨ Features
 
