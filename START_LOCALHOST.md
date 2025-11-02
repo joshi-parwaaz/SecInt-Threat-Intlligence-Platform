@@ -36,7 +36,7 @@ mongosh --eval "db.version()"
 1. Create account at https://www.mongodb.com/atlas
 2. Create free cluster
 3. Whitelist your IP address
-4. Get connection string (format: `mongodb+srv://username:password@cluster.mongodb.net/secint`)
+4. Get connection string (format: `mongodb+srv://<username>:<password>@<cluster>.mongodb.net/secint`)
 
 ---
 
