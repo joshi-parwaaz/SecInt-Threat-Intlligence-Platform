@@ -7,7 +7,7 @@ uvicorn[standard]==0.24.0
 python-multipart==0.0.6
 
 # Async HTTP client for API calls
-aiohttp==3.9.1
+aiohttp==3.12.15
 
 # Database
 motor==3.3.2
