@@ -37,7 +37,7 @@ const LandingPage = () => {
         console.error('Error fetching stats:', error);
         // Fallback to default values if API fails
         setStats({
-          total: 17517,
+          total_iocs: 17517,
           by_severity: { CRITICAL: 6, HIGH: 27, MEDIUM: 46 }
         });
       } finally {

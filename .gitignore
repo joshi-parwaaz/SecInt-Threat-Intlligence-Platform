@@ -1,285 +1,61 @@
-# ==========================================# ==========================================
-
-# Node.js / Frontend (React)# Python
-
-# ==========================================# ==========================================
-
-node_modules/__pycache__/
-
-npm-debug.log**.py[cod]
-
-yarn-debug.log**$py.class
-
-yarn-error.log**.so
-
-.pnp/.Python
-
-.pnp.jsenv/
-
-.eslintcachevenv/
-
-ENV/
-
-# Frontend build artifactsenv.bak/
-
-frontend/build/venv.bak/
-
-build/*.egg-info/
-
-dist/
-
-# ==========================================build/
-
-# Python / Backend.mypy_cache/
-
-# ==========================================.dmypy.json
-
-__pycache__/dmypy.json
-
+# Python
+__pycache__/
 *.py[cod]
+*`$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+backend/venv/
+*.egg-info/
+dist/
+build/
+.mypy_cache/
 
-*$py.class# ==========================================
-
-*.so# Node / React / Frontend
-
-.Python# ==========================================
-
+# Node.js / React
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+frontend/build/
+.eslintcache
 
-# Virtual environmentsnpm-debug.log*
-
-venv/yarn-debug.log*
-
-env/yarn-error.log*
-
-ENV/.pnp/
-
-env.bak/.pnp.js
-
-venv.bak/build/
-
-backend/venv/.eslintcache
-
-
-
-# Python build artifacts# ==========================================
-
-*.egg-info/# Environment Variables
-
-dist/# ==========================================
-
-build/.env
-
-.mypy_cache/**/.env
-
-.dmypy.jsonbackend/.env
-
-dmypy.jsonfrontend/.env
-
-.env.local
-
-# ==========================================.env.development.local
-
-# Environment Variables & Secrets.env.test.local
-
-# ==========================================.env.production.local
-
+# Environment Variables
 .env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
 
-.env.local# ==========================================
-
-.env.development.local# IDEs and Editors
-
-.env.test.local# ==========================================
-
-.env.production.local.vscode/
-
-backend/.env.idea/
-
-frontend/.env*.swp
-
+# IDEs
+.vscode/
+.idea/
+*.swp
 *.swo
 
-# Keep example file for contributors*~
-
-!.env.example*.sublime-project
-
-*.sublime-workspace
-
-# ==========================================
-
-# Logs# ==========================================
-
-# ==========================================# Operating System Files
-
-*.log# ==========================================
-
-logs/.DS_Store
-
-*.log.*.DS_Store?
-
-._*
-
-# ==========================================.Spotlight-V100
-
-# Database Files.Trashes
-
-# ==========================================ehthumbs.db
-
-*.dbThumbs.db
-
-*.sqlitedesktop.ini
-
-*.sqlite3
-
-mongo-data/# ==========================================
-
-# Docker
-
-# ==========================================# ==========================================
-
-# Testing & Coverage# (Commit .dockerignore if present)
-
-# ==========================================
-
-.coverage# ==========================================
-
-.coverage.*# Database / Data Files
-
-htmlcov/# ==========================================
-
-.pytest_cache/# Keep data structure but ignore large datasets
-
-.tox/data/**/raw/*.csv
-
-.nox/data/**/raw/*.json
-
-coverage.xmldata/**/raw/*.jsonl
-
-*.coverdata/**/raw/*.parquet
-
-.hypothesis/data/**/raw/*.txt
-
-data/**/raw/*.dat
-
-# ==========================================data/**/raw/**/*.csv
-
-# IDEs and Editorsdata/**/raw/**/*.json
-
-# ==========================================data/**/raw/**/*.jsonl
-
-.vscode/data/**/raw/**/*.dat
-
-.idea/data/**/processed/*
-
-*.swp*.db
-
-*.swo*.sqlite
-
-*~*.sqlite3
-
-*.sublime-project
-
-*.sublime-workspace# Ignore embedded Git repositories in dataset folders
-
-data/**/raw/ExploitDB_DataSet/
-
-# ==========================================data/**/raw/MOTIF/
-
-# Operating System Filesdata/**/raw/open-malsec/
-
-# ==========================================data/**/raw/*/datasets/
-
-# macOSdata/**/raw/*/dataset/
-
+# OS Files
 .DS_Store
+Thumbs.db
+desktop.ini
 
-.DS_Store?# ==========================================
-
-._*# Logs
-
-.Spotlight-V100# ==========================================
-
-.Trashes*.log
-
+# Logs
+*.log
 logs/
 
-# Windows*.log.*
+# Database
+*.db
+*.sqlite
+*.sqlite3
+mongo-data/
 
-Thumbs.db
+# Testing
+.coverage
+.pytest_cache/
+htmlcov/
 
-ehthumbs.db# ==========================================
-
-desktop.ini# Testing
-
-# ==========================================
-
-# ==========================================.coverage
-
-# Temporary Files.coverage.*
-
-# ==========================================htmlcov/
-
-*.tmp.pytest_cache/
-
-*.temp.tox/
-
-*.bak.nox/
-
-*.partcoverage.xml
-
-.cache/*.cover
-
-.hypothesis/
-
-# ==========================================
-# ML Models and Artifacts
-# ==========================================
-*.pkl
-*.joblib
-*.h5
-*.pth
-*.onnx
-models/
-checkpoints/
-
-# ==========================================
-# Temporary Files
-# ==========================================
+# Temporary
 *.tmp
 *.temp
 *.bak
-*.swp
-*.part
 .cache/
-
-# ==========================================
-# Documentation Build Artifacts
-# ==========================================
-docs/_build/
-site/
-
-# ==========================================
-# Project-Specific
-# ==========================================
-# Keep placeholder files but ignore actual data
-!data/**/README.md
-!data/datasets_info.json
-
-# Ignore verification reports (generated locally)
-data/verify_data_report.json
-
-# MongoDB data volume (if running locally without Docker)
-mongo-data/
-
-# Kafka logs (if any)
-kafka-logs/
-
-# Generated prompts (internal use only)
-generate_technical_explanation_prompt.txt
-
-# Runtime logs
-logs/*.log
-
-# Runtime logs
-logs/*.log
