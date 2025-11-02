@@ -1,83 +1,137 @@
-# SecInt v2 - Localhost Quick Start Guide
+# SecInt v2 - Localhost Setup Guide
 
-This guide will help you run the SecInt threat intelligence platform on your local machine without Docker or Kafka.
+Step-by-step instructions to run SecInt on your local machine.
+
+---
 
 ## Prerequisites
 
-1. **Python 3.9+** installed
-2. **Node.js 16+** and npm installed
-3. **MongoDB** running locally on port 27017 (or MongoDB Atlas free tier)
+Ensure the following are installed:
 
-## Installation Steps
+1. **Python 3.11+** - [Download](https://www.python.org/downloads/)
+2. **Node.js 16+** - [Download](https://nodejs.org/)
+3. **MongoDB** - Running on `localhost:27017` or cloud instance
 
-### 1. Install MongoDB Locally (if not using Atlas)
+---
+
+## MongoDB Setup
+
+### Option 1: Local Installation
 
 **Windows:**
-- Download MongoDB Community Edition from https://www.mongodb.com/try/download/community
-- Install and run MongoDB service
-- Default connection: `mongodb://localhost:27017`
-
-**Alternative - MongoDB Atlas (Free Cloud Database):**
-- Go to https://www.mongodb.com/atlas
-- Create a free account and cluster
-- Get your connection string
-- Update `.env` file with your connection string
-
-### 2. Setup Backend
-
 ```powershell
-# Navigate to backend directory
-cd backend
-
-# Create virtual environment
-python -m venv venv
-
-# Activate virtual environment
-.\venv\Scripts\Activate.ps1
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Update .env file with your API keys (optional but recommended)
-# Copy .env.example to .env and add your keys:
-# - OTX_API_KEY (get from https://otx.alienvault.com/)
-# - VIRUSTOTAL_API_KEY (get from https://www.virustotal.com/)
+# Download from https://www.mongodb.com/try/download/community
+# Install MongoDB Community Edition
+# Start MongoDB service
+net start MongoDB
 ```
 
-### 3. Setup Frontend
+**Verify connection:**
+```powershell
+mongosh --eval "db.version()"
+```
+
+### Option 2: MongoDB Atlas (Free Cloud)
+
+1. Create account at https://www.mongodb.com/atlas
+2. Create free cluster
+3. Whitelist your IP address
+4. Get connection string (format: `mongodb+srv://username:password@cluster.mongodb.net/secint`)
+
+---
+
+## Backend Setup
+
+### 1. Create Virtual Environment
 
 ```powershell
-# Open a new terminal
-cd frontend
+cd backend
+python -m venv venv
+```
 
-# Install dependencies
+### 2. Activate Virtual Environment
+
+**Windows PowerShell:**
+```powershell
+.\venv\Scripts\Activate.ps1
+```
+
+**Windows Command Prompt:**
+```cmd
+.\venv\Scripts\activate.bat
+```
+
+### 3. Install Dependencies
+
+```powershell
+pip install -r requirements.txt
+```
+
+### 4. Configure Environment Variables
+
+Create `backend/.env` file:
+
+```env
+# MongoDB Connection (required)
+MONGO_URI=mongodb://localhost:27017/secint
+
+# Threat Intelligence API Keys (optional but recommended)
+OTX_API_KEY=your_otx_api_key_here
+VIRUSTOTAL_API_KEY=your_virustotal_api_key_here
+ABUSEIPDB_API_KEY=your_abuseipdb_key_here
+URLHAUS_API_KEY=optional
+```
+
+**Get API Keys:**
+- OTX: https://otx.alienvault.com/ (unlimited, free)
+- VirusTotal: https://www.virustotal.com/ (500 requests/day)
+- AbuseIPDB: https://www.abuseipdb.com/ (1000 requests/day)
+
+### 5. Start Backend Server
+
+```powershell
+python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
+```
+
+**Expected output:**
+```
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process
+INFO:     Started server process
+```
+
+---
+
+## Frontend Setup
+
+### 1. Install Dependencies
+
+Open a **new terminal**:
+
+```powershell
+cd frontend
 npm install
 ```
 
-## Running the Application
-
-### Start Backend Server (Terminal 1)
+### 2. Start Development Server
 
 ```powershell
-cd backend
-.\venv\Scripts\Activate.ps1
-python main.py
-```
-
-Backend will run on: **http://localhost:8000**
-- API Docs: http://localhost:8000/docs
-- Health Check: http://localhost:8000/health
-
-### Start Frontend (Terminal 2)
-
-```powershell
-cd frontend
 npm start
 ```
 
-Frontend will run on: **http://localhost:3000**
+**Expected output:**
+```
+Compiled successfully!
+Local:            http://localhost:3000
+```
 
-### Ingest Threat Data (Terminal 3 - Optional)
+---
+
+## Data Ingestion
+
+### Run Initial Data Import
+
+Open a **third terminal**:
 
 ```powershell
 cd backend
@@ -85,114 +139,245 @@ cd backend
 python services/direct_ingest.py
 ```
 
-This will:
-- Fetch threat intelligence from OTX and URLhaus
-- Enrich IOCs with VirusTotal data (if API key provided)
+**This will:**
+- Fetch threat data from OTX and URLhaus
+- Enrich IOCs with VirusTotal/AbuseIPDB data
 - Calculate severity scores
-- Store everything in MongoDB
+- Store in MongoDB
 
-## Testing the Application
+**Estimated time:** 2-5 minutes depending on API keys configured
 
-1. **Check API Health:**
-   - Visit http://localhost:8000/health
-   - Should return: `{"status": "healthy"}`
+---
 
-2. **Check Database Connection:**
-   - Visit http://localhost:8000/health/apis
-   - Shows status of external threat intelligence APIs
+## Verification Steps
 
-3. **View IOC Statistics:**
-   - Visit http://localhost:8000/api/iocs/stats
-   - Shows counts of IOCs by type, severity, source
+### 1. Check Backend Health
 
-4. **Access Frontend Dashboard:**
-   - Open http://localhost:3000
-   - View IOCs, statistics, and threat intelligence
+Visit: http://localhost:8000/health
 
-## Quick Commands
+**Expected response:**
+```json
+{
+  "status": "healthy"
+}
+```
 
-### Backend Commands
+### 2. Check API Status
+
+Visit: http://localhost:8000/health/apis
+
+**Shows status of all external APIs:**
+- ✅ OK
+- ⚠️ Rate Limited
+- ❌ Not Configured
+
+### 3. View Statistics
+
+Visit: http://localhost:8000/api/iocs/stats
+
+**Expected response:**
+```json
+{
+  "total_iocs": 17517,
+  "by_type": {
+    "domain": 17265,
+    "sha256": 122,
+    "url": 116
+  },
+  "critical_count": 6,
+  "high_count": 27
+}
+```
+
+### 4. Access Dashboard
+
+Visit: http://localhost:3000
+
+**You should see:**
+- Statistics cards with IOC counts
+- Severity heatmap visualization
+- IOC explorer table
+- Top threats list
+
+---
+
+## Quick Commands Reference
+
+### Backend
+
 ```powershell
-# Start backend
-cd backend; .\venv\Scripts\Activate.ps1; python main.py
+# Start server (development mode with auto-reload)
+cd backend; .\venv\Scripts\Activate.ps1; python -m uvicorn main:app --reload
 
 # Run ingestion
 cd backend; .\venv\Scripts\Activate.ps1; python services/direct_ingest.py
 
-# Run tests
-cd backend; .\venv\Scripts\Activate.ps1; pytest tests/
+# View API docs
+# Open browser: http://localhost:8000/docs
 ```
 
-### Frontend Commands
+### Frontend
+
 ```powershell
-# Start frontend
+# Start development server
 cd frontend; npm start
 
 # Build for production
 cd frontend; npm run build
+
+# Serve production build
+cd frontend; npm install -g serve; serve -s build
 ```
 
-## Environment Variables
-
-Create `backend/.env` file:
-
-```env
-# MongoDB Connection
-MONGO_URI=mongodb://localhost:27017/secint
-
-# Threat Intelligence API Keys (Optional)
-OTX_API_KEY=your_otx_api_key_here
-VIRUSTOTAL_API_KEY=your_virustotal_api_key_here
-
-# AbuseIPDB API Key (Optional)
-ABUSEIPDB_API_KEY=your_abuseipdb_key_here
-```
+---
 
 ## Troubleshooting
 
-### MongoDB Connection Issues
-- Ensure MongoDB is running: `mongod --version`
+### MongoDB Connection Errors
+
+**Problem:** `ConnectionError: [Errno 111] Connection refused`
+
+**Solutions:**
+- Verify MongoDB is running: `mongod --version`
 - Check connection string in `.env`
-- For Atlas: Whitelist your IP address in Atlas dashboard
+- For Atlas: Ensure IP is whitelisted
 
 ### Backend Won't Start
-- Check Python version: `python --version` (should be 3.9+)
-- Ensure virtual environment is activated
-- Reinstall dependencies: `pip install -r requirements.txt`
 
-### Frontend Won't Start
-- Check Node version: `node --version` (should be 16+)
-- Clear node_modules and reinstall: `rm -rf node_modules; npm install`
+**Problem:** `ModuleNotFoundError` or import errors
 
-### No Data Showing
-- Run the ingestion script: `python services/direct_ingest.py`
-- Check MongoDB has data: Use MongoDB Compass or `mongosh`
-- Check browser console for errors
+**Solutions:**
+- Verify Python version: `python --version` (must be 3.11+)
+- Ensure venv is activated (prompt should show `(venv)`)
+- Reinstall dependencies: `pip install -r requirements.txt --force-reinstall`
+
+### Frontend Build Errors
+
+**Problem:** `npm ERR!` or dependency conflicts
+
+**Solutions:**
+- Verify Node version: `node --version` (must be 16+)
+- Clear cache and reinstall:
+  ```powershell
+  rm -rf node_modules package-lock.json
+  npm install
+  ```
+
+### No Data in Dashboard
+
+**Problem:** Dashboard shows 0 IOCs
+
+**Solutions:**
+- Run ingestion script: `python services/direct_ingest.py`
+- Check MongoDB has data:
+  ```powershell
+  mongosh
+  use secint
+  db.iocs.countDocuments()
+  ```
+- Check browser console for API errors (F12)
+
+### API Rate Limiting
+
+**Problem:** "Rate limit exceeded" in logs
+
+**Solutions:**
+- Free tier limits apply (VirusTotal: 500/day, AbuseIPDB: 1000/day)
+- Wait 24 hours for quota reset
+- Consider premium API keys for higher limits
+
+---
+
+## Production Deployment
+
+### Build Frontend
+
+```powershell
+cd frontend
+npm run build
+```
+
+### Serve Static Files
+
+Configure FastAPI to serve React build:
+
+```python
+# In backend/main.py
+from fastapi.staticfiles import StaticFiles
+
+app.mount("/", StaticFiles(directory="../frontend/build", html=True), name="static")
+```
+
+### Run with Production ASGI Server
+
+```powershell
+pip install gunicorn
+gunicorn -w 4 -k uvicorn.workers.UvicornWorker main:app --bind 0.0.0.0:8000
+```
+
+---
+
+## Scheduled Ingestion
+
+### Windows Task Scheduler
+
+1. Open Task Scheduler
+2. Create Basic Task → "SecInt Ingestion"
+3. Trigger: Daily at 2:00 AM
+4. Action: Start a program
+   - Program: `C:\Path\To\Python\python.exe`
+   - Arguments: `services/direct_ingest.py`
+   - Start in: `C:\Path\To\SecInt\backend`
+
+### PowerShell Script (Optional)
+
+Create `run-ingestion.ps1`:
+
+```powershell
+cd backend
+.\venv\Scripts\Activate.ps1
+python services/direct_ingest.py
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "Ingestion completed successfully" -ForegroundColor Green
+} else {
+    Write-Host "Ingestion failed" -ForegroundColor Red
+}
+```
+
+---
 
 ## Next Steps
 
-1. **Get API Keys** (Optional but recommended):
-   - OTX: https://otx.alienvault.com/
-   - VirusTotal: https://www.virustotal.com/
-   - AbuseIPDB: https://www.abuseipdb.com/
+1. **Explore API Documentation**  
+   Visit http://localhost:8000/docs for interactive API testing
 
-2. **Schedule Regular Ingestion**:
-   - Use Windows Task Scheduler to run `direct_ingest.py` hourly/daily
-   - Or run manually when you need fresh threat data
+2. **Generate Reports**  
+   - CSV: `GET /api/reports/download/csv`
+   - JSON: `GET /api/reports/download/json`
+   - HTML: `GET /api/reports/download/html`
 
-3. **Explore the API**:
-   - Visit http://localhost:8000/docs for interactive API documentation
-   - Test different endpoints and filters
+3. **Export for SIEM**  
+   - CEF: `GET /api/reports/export/cef`
+   - Syslog: `GET /api/reports/export/syslog`
 
-4. **Export Reports**:
-   - Download CSV reports: http://localhost:8000/api/iocs/export?format=csv
-   - Generate blocklists: http://localhost:8000/api/reports/blocklist
+4. **Schedule Regular Updates**  
+   Configure automated ingestion to keep threat data current
+
+---
 
 ## Support
 
-For issues or questions:
-- Check the logs in the `logs/` directory
-- Review API documentation at http://localhost:8000/docs
-- Check MongoDB connection and data
+**Check Logs:**
+- Backend: Console output where uvicorn is running
+- Frontend: Browser console (F12 → Console tab)
+- MongoDB: `mongosh` shell for database queries
+
+**Common Endpoints:**
+- Health: http://localhost:8000/health
+- API Status: http://localhost:8000/health/apis
+- Statistics: http://localhost:8000/api/iocs/stats
+- Documentation: http://localhost:8000/docs
+
+---
 
 Happy Threat Hunting! 🔍🛡️
