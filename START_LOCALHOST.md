@@ -69,23 +69,30 @@ pip install -r requirements.txt
 
 ### 4. Configure Environment Variables
 
-Create `backend/.env` file:
+Copy the example file and add your API keys:
+
+```powershell
+# From project root directory
+copy .env.example .env
+```
+
+Then edit `.env` file with your API keys:
 
 ```env
 # MongoDB Connection (required)
 MONGO_URI=mongodb://localhost:27017/secint
 
-# Threat Intelligence API Keys (optional but recommended)
+# Threat Intelligence API Keys (required for full functionality)
 OTX_API_KEY=your_otx_api_key_here
 VIRUSTOTAL_API_KEY=your_virustotal_api_key_here
 ABUSEIPDB_API_KEY=your_abuseipdb_key_here
-URLHAUS_API_KEY=optional
+URLHAUS_API_KEY=  # Optional - public API available
 ```
 
-**Get API Keys:**
-- OTX: https://otx.alienvault.com/ (unlimited, free)
-- VirusTotal: https://www.virustotal.com/ (500 requests/day)
-- AbuseIPDB: https://www.abuseipdb.com/ (1000 requests/day)
+**Get Free API Keys:**
+- **OTX:** https://otx.alienvault.com/ (unlimited requests)
+- **VirusTotal:** https://www.virustotal.com/ (500 requests/day)
+- **AbuseIPDB:** https://www.abuseipdb.com/ (1000 requests/day)
 
 ### 5. Start Backend Server
 

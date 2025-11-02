@@ -67,14 +67,23 @@ npm install
 
 ### Configuration
 
-Create `.env` in project root:
+Copy `.env.example` to `.env` and add your API keys:
+
+```bash
+# From project root
+copy .env.example .env  # Windows
+# or
+cp .env.example .env    # Linux/Mac
+```
+
+Edit `.env` with your keys:
 
 ```env
 MONGO_URI=mongodb://localhost:27017/secint
 OTX_API_KEY=your_key_here
 VIRUSTOTAL_API_KEY=your_key_here
 ABUSEIPDB_API_KEY=your_key_here
-URLHAUS_API_KEY=optional
+URLHAUS_API_KEY=  # Optional
 ```
 
 ### Run

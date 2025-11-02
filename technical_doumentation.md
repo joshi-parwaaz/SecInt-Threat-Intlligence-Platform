@@ -70,13 +70,15 @@ flowchart TD
 | Library | Version | Purpose |
 |---------|---------|---------|
 | **FastAPI** | 0.104.1 | High-performance web framework with automatic OpenAPI docs |
-| **Uvicorn** | latest | ASGI server with hot reload for development |
-| **Aiohttp** | latest | Async HTTP client for non-blocking API calls |
-| **Motor** | latest | Async MongoDB driver for scalable I/O |
-| **PyMongo** | latest | Sync MongoDB operations (fallback) |
-| **Pydantic** | v2 | Type-safe data validation and settings management |
-| **Pandas** | latest | Tabular data manipulation for exports |
-| **python-dotenv** | latest | Environment variable management |
+| **Uvicorn** | 0.24.0 | ASGI server with hot reload for development |
+| **Aiohttp** | 3.12.15 | Async HTTP client for non-blocking API calls |
+| **Motor** | 3.3.2 | Async MongoDB driver for scalable I/O |
+| **PyMongo** | 4.6.0 | Sync MongoDB operations (fallback) |
+| **Pydantic** | 2.5.0 | Type-safe data validation and settings management |
+| **Pydantic Settings** | 2.1.0 | Environment-based configuration |
+| **Pandas** | 2.1.3 | Tabular data manipulation for exports |
+| **python-dotenv** | 1.0.0 | Environment variable management |
+| **python-multipart** | 0.0.6 | Multipart form data parsing |
 
 **Why Async?**  
 External API calls (OTX, VirusTotal, AbuseIPDB) involve network I/O. Async enables concurrent processing of multiple IOCs without thread overhead, significantly improving ingestion performance.
