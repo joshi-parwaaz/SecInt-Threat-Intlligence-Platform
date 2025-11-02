@@ -1,6 +1,6 @@
 
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -23,11 +23,38 @@ import SecIntGlobe from './AnimatedGlobe';
 
 const LandingPage = () => {
   const navigate = useNavigate();
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch live stats from backend
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/iocs/stats');
+        const data = await response.json();
+        setStats(data);
+      } catch (error) {
+        console.error('Error fetching stats:', error);
+        // Fallback to default values if API fails
+        setStats({
+          total: 17517,
+          by_severity: { CRITICAL: 6, HIGH: 27, MEDIUM: 46 }
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+    // Refresh stats every 2 minutes
+    const interval = setInterval(fetchStats, 120000);
+    return () => clearInterval(interval);
+  }, []);
 
   const achievements = [
-    { number: "17,517", label: "Total IOCs" },
-    { number: "6", label: "Critical Threats" },
-    { number: "27", label: "High Threats" },
+    { number: stats?.total_iocs?.toLocaleString() || "Loading...", label: "Total IOCs" },
+    { number: stats?.by_severity?.CRITICAL?.toLocaleString() || "0", label: "Critical Threats" },
+    { number: stats?.by_severity?.HIGH?.toLocaleString() || "0", label: "High Threats" },
     { number: "4", label: "Threat Feeds" },
   ];
 
@@ -67,7 +94,7 @@ const LandingPage = () => {
   const threatLevels = [
     {
       level: "CRITICAL",
-      count: 6,
+      count: stats?.by_severity?.CRITICAL || 6,
       description: "Immediate action required - Active malware campaigns and C2 infrastructure",
       color: "text-red-500",
       bgColor: "bg-red-500/10",
@@ -75,7 +102,7 @@ const LandingPage = () => {
     },
     {
       level: "HIGH",
-      count: 27,
+      count: stats?.by_severity?.HIGH || 27,
       description: "High-priority threats - Known malicious domains and IPs with recent activity",
       color: "text-orange-500",
       bgColor: "bg-orange-500/10",
@@ -83,7 +110,7 @@ const LandingPage = () => {
     },
     {
       level: "MEDIUM",
-      count: 46,
+      count: stats?.by_severity?.MEDIUM || 46,
       description: "Moderate threats - Suspicious indicators requiring investigation",
       color: "text-yellow-500",
       bgColor: "bg-yellow-500/10",

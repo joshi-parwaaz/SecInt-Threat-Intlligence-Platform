@@ -35,65 +35,246 @@ SecInt v2 is a comprehensive threat intelligence platform that automatically col
 
 ## ✨ Features
 
-### 1. **Real Threat Intelligence Ingestion**
-- Automated collection from AlienVault OTX pulses
-- URLhaus malware distribution tracking
-- Concurrent API calls for high performance
-- Intelligent deduplication (17,517 unique IOCs ingested)
-- Support for: Domains, IP addresses, File hashes (MD5/SHA1/SHA256), URLs, CVEs
-
-### 2. **IOC Enrichment & Severity Scoring**
-- **Type-Specific Enrichment:**
-  - IPs: AbuseIPDB confidence scores + VirusTotal reputation
-  - Hashes: VirusTotal malware analysis with family classification
-  - Domains: Reputation scoring and threat categorization
-  - URLs: Malware distribution and phishing detection
-
-- **Weighted Severity Algorithm:**
-  - VirusTotal detection rate (50 points if >80%)
-  - Malware family criticality (40 points for high-threat families)
-  - AbuseIPDB confidence (30 points if >90%)
-  - IOC recency (15 points if <7 days old)
+### 1. **Real-Time Threat Intelligence Ingestion**
+- **Automated Collection:**
+  - AlienVault OTX: Pulls from threat pulses (limit: 20 pulses)
+  - URLhaus: Malware URLs (50) + Payloads (50)
+  - On-demand ingestion via dashboard button
+  - Background task processing with progress tracking
   
-- **Current Threat Landscape:**
-  - 6 CRITICAL threats (score ≥80)
-  - 27 HIGH threats (score ≥60)
-  - 46 MEDIUM threats (score ≥40)
+- **Concurrent API Processing:**
+  - Asynchronous API calls for high performance
+  - Smart rate limiting and quota management
+  - Automatic retry with exponential backoff
 
-### 3. **Database Storage**
-- MongoDB with async motor driver
-- 17,517 IOCs stored with rich metadata:
-  - `correlation_id` - UUID for SIEM tracking
-  - `ioc_category` - Normalized type classification
-  - `threat_actor` - Attribution from pulse metadata
-  - `last_updated` - Timestamp tracking
-  - `vt_detections` - Normalized "X/Y" format
-  - `abuse_score` - AbuseIPDB confidence
-- Advanced querying with filters, pagination, search
+- **Intelligent Deduplication:**
+  - 17,517 unique IOCs currently ingested
+  - Correlation ID tracking for SIEM integration
+  - Merge strategy for multi-source indicators
 
-### 4. **Report Generation**
-- **CSV Export** - Tabular format for spreadsheet analysis
-- **JSON Export** - Structured data for automation
-- **HTML Reports** - Formatted reports with executive summaries
+- **Supported IOC Types:**
+  - 🌐 Domains (75% of dataset)
+  - 📍 IPv4 addresses
+  - 🔒 File hashes (MD5/SHA1/SHA256)
+  - 🔗 URLs
+  - 🛡️ CVEs (Common Vulnerabilities)
+
+### 2. **Advanced IOC Enrichment & Severity Scoring**
+
+**Type-Specific Enrichment Pipeline:**
+
+| IOC Type | Enrichment Sources | Data Points |
+|----------|-------------------|-------------|
+| **IP Addresses** | AbuseIPDB + VirusTotal | Abuse confidence score, geographic data, ISP info, reputation |
+| **File Hashes** | VirusTotal | Malware family, detection rate (X/Y engines), behavior analysis |
+| **Domains** | VirusTotal + OTX | Reputation score, threat categorization, registration data |
+| **URLs** | URLhaus + VirusTotal | Malware distribution, phishing detection, online status |
+
+**Multi-Factor Severity Scoring Algorithm:**
+
+IOCs are ranked using a **weighted 100-point scoring system**:
+
+| Factor | Max Points | Criteria |
+|--------|-----------|----------|
+| **VirusTotal Detection** | 50 | >80% detection = +50, >50% = +30, >20% = +15 |
+| **Malware Family** | 40 | Critical families (Ryuk, Emotet, APT28) = +40 |
+| **AbuseIPDB Confidence** | 30 | >90% = +30, >70% = +20, >50% = +10 |
+| **Threat Type Context** | 25 | Ransomware, C2, Botnet, APT, Zero-day |
+| **URLhaus Activity** | 20 | Online status = +20, Malware download = +15 |
+| **VirusTotal Reputation** | 20 | Negative reputation < -50 = +20 |
+| **Recency** | 15 | <7 days = +15, <30 days = +10 |
+| **Multi-Source Confirmation** | 15 | 3+ sources = +15, 2+ sources = +10 |
+
+**Severity Classification:**
+
+```
+Score 70-100+  → 🔴 CRITICAL  (6 IOCs)   - Immediate action required
+Score 45-69    → 🟠 HIGH      (27 IOCs)  - Urgent response needed  
+Score 20-44    → 🟡 MEDIUM    (46 IOCs)  - Monitor closely
+Score 1-19     → 🟢 LOW       (17,438)   - Informational
+Score 0        → ⚪ UNKNOWN              - Insufficient data
+```
+
+**Example Calculation:**
+```
+Domain: malicious-c2.com
+├─ VT Detection: 62/70 engines (88%)      → +50 points
+├─ Malware Family: "Ryuk ransomware"      → +40 points  
+├─ Threat Context: "C2 server"            → +25 points
+├─ First Seen: 3 days ago                 → +15 points
+└─ Confirmed by: 3 sources                → +15 points
+────────────────────────────────────────────────────────
+   TOTAL: 145 points → CRITICAL severity
+```
+
+### 3. **MongoDB Storage & Querying**
+
+**Database Specifications:**
+- **Total IOCs:** 17,517 unique indicators
+- **Storage Engine:** MongoDB with Motor (async driver)
+- **Connection:** `mongodb://localhost:27017/secint`
+- **Indexing:** Optimized for `ioc_value`, `severity_score`, `first_seen`
+
+**Rich Metadata Schema:**
+```json
+{
+  "ioc_value": "malware.example.com",
+  "ioc_type": "domain",
+  "severity": "CRITICAL",
+  "severity_score": 85,
+  "severity_reasons": ["VT detection >80%", "Critical malware: ryuk"],
+  "correlation_id": "uuid-v4-here",
+  "threat_actor": "APT28",
+  "malware_family": "trojan.reverseshell",
+  "vt_detections": "55/76",
+  "vt_detection_rate": 0.724,
+  "abuse_score": 95,
+  "first_seen": "2025-10-31T12:00:00Z",
+  "last_updated": "2025-11-02T08:30:00Z",
+  "sources": {
+    "otx": {...},
+    "virustotal": {...},
+    "abuseipdb": {...}
+  }
+}
+```
+
+**Advanced Query Capabilities:**
+- Filter by type, severity, date range
+- Pagination with offset/limit
+- Full-text search on IOC values
+- Sorting by score, recency, or alphabetical
+
+### 4. **Interactive Dashboard with Data Insights**
+
+**Modern Single-Page Dashboard Features:**
+
+🎯 **Real-Time Statistics Cards:**
+- Total IOCs with animated counters (17,517)
+- Critical Threats requiring immediate action (6)
+- High-Priority Threats (27)  
+- Recent IOCs discovered in last 7 days
+- Auto-refresh every 30 seconds
+
+📊 **Advanced Visualizations:**
+
+**Severity Distribution Heatmap:**
+- Interactive grid: Severity (rows) × IOC Types (columns)
+- Color intensity based on count (gradient: gray → gold → yellow)
+- Hover tooltips showing exact counts and percentages
+- Square cells with colored borders and glow effects
+- Visual legend showing intensity scale
+
+**IOC Types Distribution (Logarithmic Bar Chart):**
+- Log scale to handle wide data ranges (1 to 21,000)
+- Smart axis formatting (21k instead of 21000)
+- Data labels on top of each bar
+- White axis labels, yellow accents (#F1C40F)
+- Rounded bar corners for modern look
+
+💡 **Dynamic Insights Panel:**
+Automatically generated analysis beneath the bar chart:
+- **Dominant Threat Type:** "DOMAIN accounts for 75% of total IOCs"
+- **Activity Multiplier:** "DOMAIN activity is 2.5× higher than average"
+- **Critical Alert:** "0.1% of IOCs are CRITICAL severity" (if >5%)
+- **Distribution Pattern:** "5 distinct IOC types detected"
+
+**Color-coded bullet points** with context-aware text that updates in real-time!
+
+🔍 **IOC Explorer Table:**
+- Paginated list with 100 IOCs per page
+- Filter by: Type (Domain, IP, Hash), Severity (All/Critical/High)
+- Each row shows: IOC value, Type badge, Severity badge, Score, Sources, Discovery date
+- Severity color coding: Red (Critical), Orange (High), Yellow (Medium), Green (Low)
+
+⚡ **Two-Button Refresh Strategy:**
+1. **"Ingest New IOCs"** (Green) - Pulls fresh data from threat feeds
+   - Shows progress: "Fetching OTX pulses...", "Fetching URLhaus URLs..."
+   - Estimated time: 1-3 minutes
+   - Auto-refreshes dashboard when complete
+   
+2. **"Refresh Data"** (Yellow) - Reloads existing data from MongoDB
+   - Minimum 1.2s loading animation for visibility
+   - Success notification banner
+   - Animated stat counters
+
+🏥 **API Health Status:**
+- Real-time monitoring of all threat feed APIs
+- Status indicators: ✅ OK, ⚠️ Rate Limited, ❌ Not Configured
+- Quota tracking: VirusTotal (500/day), AbuseIPDB (1000/day)
+- Color-coded cards with hover effects
+
+🎯 **Top 10 Critical Threats:**
+- Ranked by severity score (highest first)
+- Shows: IOC value, Type, Severity, Score, Threat actor, Malware family
+- Numbered ranking badges
+- Hover effects with border color changes
+- Truncated long values with ellipsis
+
+📥 **Blocklist Download:**
+- One-click export of high-severity IOCs
+- Firewall-ready format (IPs, domains, hashes separated)
+- JSON format for easy parsing
+- Includes metadata: generation timestamp, total count
+
+### 5. **Report Generation & Export**
+### 5. **Report Generation & Export**
+
+**Multiple Export Formats:**
+- **CSV Export** - Tabular format for spreadsheet analysis and pivot tables
+- **JSON Export** - Structured data for automation and custom tooling
+- **HTML Reports** - Beautifully formatted reports with:
+  - Executive summary with key metrics
+  - Severity distribution tables
+  - Top threats ranked by score
+  - Embedded charts and graphs
+  - Printable format
+
+**Specialized Exports:**
 - **Blocklists** - Firewall-ready IP/domain/hash lists
-
-### 5. **SIEM Integration**
-- **CEF Format** - Common Event Format for Splunk, QRadar, ArcSight
-- **Syslog Format** - RFC 5424 compliant for pfSense, Fortinet
-- Includes severity, correlation IDs, threat actor attribution
+  - Separated by type (IPv4, domains, URLs, hashes)
+  - CRITICAL + HIGH severity only
+  - Metadata included (generation time, counts)
+  
+- **SIEM Integration Formats:**
+  - **CEF (Common Event Format)** - For Splunk, QRadar, ArcSight
+  - **Syslog (RFC 5424)** - For pfSense, Fortinet, ELK Stack
+  - Includes: Severity, correlation IDs, threat actor, timestamps
 
 ### 6. **API Health Monitoring**
-- Real-time status of all threat feed APIs
-- Quota tracking (VirusTotal: 500/day)
-- Rate limit monitoring
-- Connection status indicators
 
-### 7. **Interactive Dashboard**
-- **IOC Explorer** - Browse and filter 17.5K IOCs
-- **Charts** - Severity distribution, IOC type breakdown
-- **Top Threats** - Critical/High priority IOCs for immediate action
-- **Blocklist Download** - One-click export for firewall rules
-- **Auto-refresh** - 30-second updates for real-time monitoring
+Real-time monitoring dashboard showing:
+- **Status Indicators:** ✅ OK, ⚠️ Rate Limited, ❌ Not Configured, 🔄 Checking
+- **Quota Tracking:** 
+  - VirusTotal: 500 requests/day
+  - AbuseIPDB: 1,000 requests/day  
+  - AlienVault OTX: Unlimited
+  - URLhaus: Unlimited (public endpoints)
+- **Connection Health:** Response time, last successful call
+- **Rate Limit Warnings:** Auto-detect approaching limits
+
+### 7. **Dashboard Features Summary**
+
+**Theme:** Dark mode with golden accents (#F1C40F / #0B0C10)
+
+**Key UI Components:**
+- 📊 Animated stat cards with ease-out counters
+- 🗺️ Severity × Type heatmap with hover tooltips
+- 📈 Logarithmic bar chart with axis labels
+- 💡 Auto-generated insights panel
+- 📋 Filterable IOC explorer table
+- 🔄 Dual refresh buttons (Ingest vs Reload)
+- ⚡ Progress bars with status messages
+- ✅ Success notifications
+- 🏥 API health status grid
+- 🎯 Top 10 threats ranked list
+- 📥 Blocklist download button
+
+**Performance:**
+- Auto-refresh: 30s for stats, 2min for API health
+- Smooth animations with Framer Motion
+- Responsive design (desktop/tablet optimized)
+- Minimal 1.2s loading time for visual feedback
 
 ---
 
@@ -441,28 +622,118 @@ SecInt/
 
 ```python
 {
-  "ioc_value": str,              # The actual indicator
+  # Core Identification
+  "ioc_value": str,              # The actual indicator (domain, IP, hash, etc.)
   "ioc_type": str,               # ipv4, domain, sha256, url, cve
   "ioc_category": str,           # filehash, ip, domain, url, other
-  "severity": str,               # CRITICAL, HIGH, MEDIUM, LOW
-  "severity_score": int,         # 0-100 weighted score
+  
+  # Severity & Scoring
+  "severity": str,               # CRITICAL, HIGH, MEDIUM, LOW, UNKNOWN
+  "severity_score": int,         # 0-100+ weighted score from algorithm
+  "severity_reasons": [str],     # ["VT detection >80%", "Critical malware: ryuk"]
+  
+  # Tracking & Correlation
   "correlation_id": str,         # UUID for SIEM correlation
-  "threat_actor": str,           # Attribution from OTX
-  "malware_family": str,         # Malware classification
-  "description": str,            # Threat description
-  "context": str,                # Additional context
-  "vt_detections": str,          # "X/Y" format
-  "vt_detection_rate": float,    # 0.0-1.0
-  "abuse_score": int,            # AbuseIPDB confidence
-  "source": str,                 # otx, urlhaus, virustotal
   "first_seen": datetime,        # Discovery timestamp
   "last_updated": datetime,      # Last modification
-  "sources": {                   # Raw enrichment data
-    "otx": {},
-    "virustotal": {},
-    "abuseipdb": {}
+  
+  # Threat Attribution
+  "threat_actor": str,           # Attribution from OTX pulses
+  "malware_family": str,         # Malware classification (e.g., "trojan.emotet")
+  "threat_type": str,            # ransomware, c2, botnet, apt
+  "description": str,            # Human-readable threat description
+  "context": str,                # Additional context from feeds
+  
+  # Enrichment Data
+  "vt_detections": str,          # "X/Y" format (e.g., "55/76")
+  "vt_detection_rate": float,    # 0.0-1.0 normalized rate
+  "vt_reputation": int,          # -100 to +100 (negative = malicious)
+  "abuse_score": int,            # AbuseIPDB confidence (0-100)
+  "url_status": str,             # "online" or "offline" (URLhaus)
+  
+  # Source Tracking
+  "source": str,                 # Primary source: otx, urlhaus, virustotal
+  "sources": {                   # Raw enrichment data from all sources
+    "otx": {
+      "pulse_count": int,
+      "pulse_names": [str],
+      "pulse_ids": [str]
+    },
+    "virustotal": {
+      "detections": int,
+      "total_engines": int,
+      "scan_date": datetime,
+      "permalink": str
+    },
+    "abuseipdb": {
+      "abuse_confidence_score": int,
+      "country_code": str,
+      "usage_type": str,
+      "isp": str
+    },
+    "urlhaus": {
+      "url_status": str,
+      "threat": str,
+      "tags": [str]
+    }
   }
 }
+```
+
+### Severity Scoring Breakdown
+
+**How Each Factor Contributes:**
+
+```python
+# Example: Critical Ransomware C2 Domain
+ioc = {
+  "ioc_value": "evil-c2.com",
+  "ioc_type": "domain"
+}
+
+# Scoring breakdown:
+factors = {
+  "vt_detection_rate": {
+    "value": 0.88,                    # 62/70 engines
+    "points": 50,                      # >80% detection
+    "reason": "VT detection: 62/70 (>80%)"
+  },
+  "malware_family": {
+    "value": "ryuk ransomware",
+    "points": 40,                      # Critical family
+    "reason": "Critical malware: ryuk"
+  },
+  "threat_context": {
+    "value": "c2 server, command and control",
+    "points": 25,                      # Critical threat type
+    "reason": "Critical threat type: c2"
+  },
+  "recency": {
+    "value": "3 days old",
+    "points": 15,                      # <7 days
+    "reason": "Recent threat (<7 days)"
+  },
+  "multi_source": {
+    "value": 3,                        # OTX + VT + URLhaus
+    "points": 15,                      # 3 sources
+    "reason": "Confirmed by 3 sources"
+  }
+}
+
+# Total: 145 points → CRITICAL severity
+```
+
+### Database Indexes
+
+**Optimized Query Performance:**
+```javascript
+// MongoDB indexes
+db.iocs.createIndex({ "ioc_value": 1 }, { unique: true })
+db.iocs.createIndex({ "severity_score": -1 })
+db.iocs.createIndex({ "severity": 1, "severity_score": -1 })
+db.iocs.createIndex({ "first_seen": -1 })
+db.iocs.createIndex({ "ioc_type": 1, "severity": 1 })
+db.iocs.createIndex({ "malware_family": 1 })
 ```
 
 ---

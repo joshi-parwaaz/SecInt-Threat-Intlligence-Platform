@@ -12,6 +12,7 @@ load_dotenv()
 
 from routers import iocs
 from routers import reports
+from routers import ingestion
 from database import connect_db, disconnect_db
 from services.api_validator import api_validator
 
@@ -42,6 +43,7 @@ app.add_middleware(
 # Include routers
 app.include_router(iocs.router, prefix="/api/iocs", tags=["IOCs"])
 app.include_router(reports.router, prefix="/api/reports", tags=["Reports"])
+app.include_router(ingestion.router, prefix="/api/ingestion", tags=["Ingestion"])
 
 @app.get("/")
 async def root():

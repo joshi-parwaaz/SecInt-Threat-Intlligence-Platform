@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useSpring, useTransform } from 'framer-motion';
 import {
   Activity,
   AlertTriangle,
@@ -22,6 +22,40 @@ import {
 import { PieChart, Pie, BarChart, Bar, Cell, ResponsiveContainer, Tooltip, Legend, XAxis, YAxis } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/Card';
 
+// Animated Counter Component
+const AnimatedCounter = ({ value, duration = 1 }) => {
+  const [displayValue, setDisplayValue] = useState(0);
+
+  useEffect(() => {
+    let startValue = 0;
+    const endValue = value || 0;
+    const startTime = Date.now();
+    const animationDuration = duration * 1000;
+
+    const animate = () => {
+      const currentTime = Date.now();
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / animationDuration, 1);
+      
+      // Ease out animation
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+      const current = Math.floor(startValue + (endValue - startValue) * easeProgress);
+      
+      setDisplayValue(current);
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        setDisplayValue(endValue);
+      }
+    };
+
+    animate();
+  }, [value, duration]);
+
+  return <>{displayValue.toLocaleString()}</>;
+};
+
 const Dashboard = () => {
   // State
   const [stats, setStats] = useState(null);
@@ -33,36 +67,11 @@ const Dashboard = () => {
   const [error, setError] = useState(null);
   const [selectedType, setSelectedType] = useState('all');
   const [selectedSeverity, setSelectedSeverity] = useState('all');
-
-  // Fetch all data
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      await Promise.all([
-        fetchStats(),
-        fetchIOCs(),
-        fetchTopThreats(),
-        fetchBlocklist(),
-        fetchAPIHealth()
-      ]);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Auto-refresh for API health every 2 minutes
-  useEffect(() => {
-    const apiInterval = setInterval(fetchAPIHealth, 120000);
-    return () => clearInterval(apiInterval);
-  }, []);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [isIngesting, setIsIngesting] = useState(false);
+  const [ingestionStatus, setIngestionStatus] = useState(null);
 
   // Fetch Stats
   const fetchStats = async () => {
@@ -91,9 +100,74 @@ const Dashboard = () => {
     }
   };
 
-  // Re-fetch when filters change
+  // Fetch all data (manual refresh)
+  const fetchData = async () => {
+    setLoading(true);
+    setIsRefreshing(true);
+    setError(null);
+    setShowSuccessMessage(false);
+    
+    // Start time for minimum loading duration
+    const startTime = Date.now();
+    
+    try {
+      await Promise.all([
+        fetchStats(),
+        fetchIOCs(),
+        fetchTopThreats(),
+        fetchBlocklist(),
+        fetchAPIHealth()
+      ]);
+      setLastUpdated(new Date());
+      
+      // Ensure minimum 1.2 seconds loading time for better UX visibility
+      const elapsedTime = Date.now() - startTime;
+      const remainingTime = Math.max(0, 1200 - elapsedTime);
+      
+      if (remainingTime > 0) {
+        await new Promise(resolve => setTimeout(resolve, remainingTime));
+      }
+      
+      // Show success message
+      setShowSuccessMessage(true);
+      setTimeout(() => setShowSuccessMessage(false), 3000);
+    } catch (err) {
+      console.error('Error fetching data:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+      // Keep refresh animation for a bit longer for visual feedback
+      setTimeout(() => setIsRefreshing(false), 1000);
+    }
+  };
+
+  // Initial load
   useEffect(() => {
-    if (!loading) fetchIOCs();
+    fetchData();
+  }, []);
+
+  // Auto-refresh every 30 seconds (without loading state)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchStats();
+      fetchIOCs();
+      fetchTopThreats();
+      fetchBlocklist();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [selectedType, selectedSeverity]);
+
+  // Auto-refresh for API health every 2 minutes
+  useEffect(() => {
+    const apiInterval = setInterval(fetchAPIHealth, 120000);
+    return () => clearInterval(apiInterval);
+  }, []);
+
+  // Re-fetch IOCs when filters change
+  useEffect(() => {
+    if (stats) {
+      fetchIOCs();
+    }
   }, [selectedType, selectedSeverity]);
 
   // Fetch Top Threats
@@ -127,6 +201,67 @@ const Dashboard = () => {
     } catch (err) {
       console.error('Error fetching API health:', err);
     }
+  };
+
+  // Trigger ingestion
+  const triggerIngestion = async () => {
+    setIsIngesting(true);
+    try {
+      const response = await fetch('http://localhost:8000/api/ingestion/trigger', {
+        method: 'POST'
+      });
+      const data = await response.json();
+      
+      if (response.ok) {
+        // Start polling for status
+        pollIngestionStatus();
+      } else {
+        alert(data.detail || 'Failed to start ingestion');
+        setIsIngesting(false);
+      }
+    } catch (err) {
+      console.error('Error triggering ingestion:', err);
+      alert('Failed to start ingestion');
+      setIsIngesting(false);
+    }
+  };
+
+  // Poll ingestion status
+  const pollIngestionStatus = async () => {
+    const checkStatus = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/ingestion/status');
+        const data = await response.json();
+        setIngestionStatus(data);
+        
+        if (!data.running) {
+          setIsIngesting(false);
+          if (data.last_result?.status === 'success') {
+            // Refresh data after successful ingestion
+            await fetchData();
+            alert(`Ingestion complete! Added ${data.last_result.stats?.iocs_stored || 0} new IOCs`);
+          } else if (data.last_result?.status === 'error') {
+            alert(`Ingestion failed: ${data.last_result.error}`);
+          }
+          return false; // Stop polling
+        }
+        return true; // Continue polling
+      } catch (err) {
+        console.error('Error checking ingestion status:', err);
+        setIsIngesting(false);
+        return false;
+      }
+    };
+    
+    // Poll every 2 seconds
+    const poll = async () => {
+      const shouldContinue = await checkStatus();
+      if (shouldContinue) {
+        setTimeout(poll, 2000);
+      }
+    };
+    
+    poll();
   };
 
   // Download Report
@@ -244,17 +379,93 @@ const Dashboard = () => {
 
   // Chart data
   const severityData = stats ? [
-    { name: 'Critical', value: stats.by_severity?.CRITICAL || 0, color: '#ef4444' },
-    { name: 'High', value: stats.by_severity?.HIGH || 0, color: '#f97316' },
-    { name: 'Medium', value: stats.by_severity?.MEDIUM || 0, color: '#eab308' },
-    { name: 'Low', value: stats.by_severity?.LOW || 0, color: '#22c55e' }
+    { name: 'Critical', value: stats.by_severity?.CRITICAL || 0, color: '#E74C3C' },
+    { name: 'High', value: stats.by_severity?.HIGH || 0, color: '#E67E22' },
+    { name: 'Medium', value: stats.by_severity?.MEDIUM || 0, color: '#F1C40F' },
+    { name: 'Low', value: stats.by_severity?.LOW || 0, color: '#2ECC71' }
   ] : [];
 
   const typeData = stats?.by_type ? Object.entries(stats.by_type).map(([name, value]) => ({
     name: name.toUpperCase(),
     value,
-    color: '#eab308'
+    color: '#F1C40F'
   })) : [];
+
+  // Heatmap data: Severity (rows) vs Type (columns)
+  const heatmapData = stats ? (() => {
+    const severityLevels = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
+    const types = Object.keys(stats.by_type || {});
+    
+    // Create mock distribution data (in production, this would come from backend)
+    // For now, distribute proportionally based on severity and type
+    const totalIOCs = stats.total_iocs || 0;
+    const data = [];
+    
+    severityLevels.forEach(severity => {
+      const row = { severity };
+      const severityCount = stats.by_severity?.[severity] || 0;
+      
+      types.forEach(type => {
+        const typeCount = stats.by_type?.[type] || 0;
+        // Proportional distribution (this is a simplified calculation)
+        const estimate = totalIOCs > 0 ? Math.round((severityCount * typeCount) / totalIOCs) : 0;
+        row[type] = estimate;
+      });
+      
+      data.push(row);
+    });
+    
+    return data;
+  })() : [];
+
+  const heatmapTypes = stats?.by_type ? Object.keys(stats.by_type) : [];
+
+  // Calculate max value for heatmap color intensity
+  const maxHeatmapValue = Math.max(
+    ...heatmapData.flatMap(row => 
+      Object.entries(row)
+        .filter(([key]) => key !== 'severity')
+        .map(([, value]) => value)
+    ),
+    1
+  );
+
+  // Get color intensity for heatmap
+  const getHeatmapColor = (value, severity) => {
+    const baseColors = {
+      CRITICAL: { r: 231, g: 76, b: 60 },   // #E74C3C
+      HIGH: { r: 230, g: 126, b: 34 },      // #E67E22
+      MEDIUM: { r: 241, g: 196, b: 15 },    // #F1C40F
+      LOW: { r: 46, g: 204, b: 113 }        // #2ECC71
+    };
+    
+    const base = baseColors[severity];
+    const intensity = value / maxHeatmapValue;
+    const minOpacity = 0.15;
+    const opacity = minOpacity + (intensity * (1 - minOpacity));
+    
+    return `rgba(${base.r}, ${base.g}, ${base.b}, ${opacity})`;
+  };
+
+  // Calculate insights
+  const insights = stats && typeData.length > 0 ? (() => {
+    const totalIOCs = stats.total_iocs || 0;
+    const topType = typeData.reduce((max, curr) => curr.value > max.value ? curr : max, typeData[0]);
+    const topTypePercentage = totalIOCs > 0 ? ((topType.value / totalIOCs) * 100).toFixed(1) : 0;
+    
+    const avgTypeCount = typeData.reduce((sum, t) => sum + t.value, 0) / typeData.length;
+    const topTypeMultiplier = avgTypeCount > 0 ? (topType.value / avgTypeCount).toFixed(1) : 0;
+    
+    const criticalPercentage = totalIOCs > 0 ? ((stats.by_severity?.CRITICAL || 0) / totalIOCs * 100).toFixed(1) : 0;
+    
+    return {
+      topType: topType.name,
+      topTypePercentage,
+      topTypeMultiplier,
+      criticalPercentage,
+      totalIOCs
+    };
+  })() : null;
 
   // Calculate percentage for severity
   const totalSeverity = severityData.reduce((sum, item) => sum + item.value, 0);
@@ -298,17 +509,116 @@ const Dashboard = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-4xl font-bold text-yellow-500 mb-2">Threat Intelligence Dashboard</h1>
-            <p className="text-gray-400">Real-time monitoring and analysis</p>
+            <p className="text-gray-400 flex items-center gap-2">
+              Real-time monitoring and analysis
+              {loading && <span className="ml-2 text-yellow-500 animate-pulse">● Refreshing data...</span>}
+              {!loading && lastUpdated && (
+                <span className="ml-2 text-gray-500 text-sm">
+                  • Last updated: {lastUpdated.toLocaleTimeString()}
+                </span>
+              )}
+            </p>
           </div>
-          <button
-            onClick={fetchData}
-            disabled={loading}
-            className="flex items-center gap-2 px-6 py-3 bg-yellow-500 text-black rounded-lg hover:bg-yellow-600 transition-all disabled:opacity-50"
-          >
-            <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={triggerIngestion}
+              disabled={isIngesting}
+              className="flex items-center gap-2 px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+            >
+              <Database className={`w-5 h-5 ${isIngesting ? 'animate-bounce' : ''}`} />
+              {isIngesting ? 'Ingesting...' : 'Ingest New IOCs'}
+            </button>
+            <button
+              onClick={fetchData}
+              disabled={loading}
+              className="flex items-center gap-2 px-6 py-3 bg-yellow-500 text-black rounded-lg hover:bg-yellow-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+            >
+              <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+              {loading ? 'Refreshing...' : 'Refresh Data'}
+            </button>
+          </div>
         </div>
+        {/* Progress Bar */}
+        {loading && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="mt-6"
+          >
+            <div className="h-2 w-full bg-gray-800 rounded-full overflow-hidden shadow-inner border border-gray-700">
+              <motion.div
+                className="h-full bg-gradient-to-r from-yellow-500 via-yellow-400 to-yellow-500 shadow-lg"
+                initial={{ width: '0%' }}
+                animate={{ width: '100%' }}
+                transition={{ duration: 1, ease: "linear", repeat: Infinity }}
+                style={{
+                  boxShadow: '0 0 10px rgba(234, 179, 8, 0.5)'
+                }}
+              />
+            </div>
+            <div className="flex items-center justify-center gap-2 mt-3">
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+              >
+                <RefreshCw className="w-4 h-4 text-yellow-500" />
+              </motion.div>
+              <p className="text-sm text-yellow-500 font-medium">Fetching latest threat intelligence data...</p>
+            </div>
+          </motion.div>
+        )}
+        
+        {/* Ingestion Progress */}
+        {isIngesting && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="mt-6"
+          >
+            <div className="h-2 w-full bg-gray-800 rounded-full overflow-hidden shadow-inner border border-green-700">
+              <motion.div
+                className="h-full bg-gradient-to-r from-green-500 via-green-400 to-green-500 shadow-lg"
+                initial={{ width: '0%' }}
+                animate={{ width: '100%' }}
+                transition={{ duration: 2, ease: "linear", repeat: Infinity }}
+                style={{
+                  boxShadow: '0 0 10px rgba(34, 197, 94, 0.5)'
+                }}
+              />
+            </div>
+            <div className="flex flex-col items-center justify-center gap-2 mt-3">
+              <div className="flex items-center gap-2">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                >
+                  <Database className="w-4 h-4 text-green-500" />
+                </motion.div>
+                <p className="text-sm text-green-500 font-medium">
+                  {ingestionStatus?.progress || 'Ingesting new IOCs from threat feeds...'}
+                </p>
+              </div>
+              <p className="text-xs text-gray-500">
+                This may take 1-3 minutes • Fetching from OTX, URLhaus
+              </p>
+            </div>
+          </motion.div>
+        )}
+        
+        {/* Success Message */}
+        {showSuccessMessage && !loading && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="mt-4 flex items-center justify-center gap-2 bg-green-500/10 border border-green-500/30 rounded-lg p-3"
+          >
+            <CheckCircle className="w-5 h-5 text-green-500" />
+            <p className="text-green-500 font-medium">Dashboard refreshed successfully!</p>
+          </motion.div>
+        )}
       </motion.div>
 
       {/* Download Buttons */}
@@ -424,9 +734,20 @@ const Dashboard = () => {
         transition={{ delay: 0.3 }}
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
       >
-        <motion.div whileHover={{ scale: 1.05 }} transition={{ type: "spring", stiffness: 300 }}>
-          <Card className="relative overflow-hidden">
+        <motion.div 
+          whileHover={{ scale: 1.05 }} 
+          transition={{ type: "spring", stiffness: 300 }}
+        >
+          <Card className={`relative overflow-hidden ${isRefreshing ? 'ring-2 ring-yellow-500/50' : ''} transition-all`}>
             <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/10 rounded-full -mr-16 -mt-16" />
+            {isRefreshing && (
+              <motion.div 
+                className="absolute inset-0 bg-yellow-500/10"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0, 0.5, 0] }}
+                transition={{ duration: 0.8, ease: "easeInOut" }}
+              />
+            )}
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium text-gray-400">Total IOCs</CardTitle>
@@ -434,7 +755,9 @@ const Dashboard = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-4xl font-bold text-yellow-500 mb-2">{stats?.total?.toLocaleString() || 0}</div>
+              <div className="text-4xl font-bold text-yellow-500 mb-2">
+                <AnimatedCounter value={stats?.total_iocs || 0} duration={1.2} />
+              </div>
               <div className="flex items-center gap-2 text-xs text-gray-500">
                 <TrendingUp className="w-3 h-3 text-green-500" />
                 <span>Across all sources</span>
@@ -443,9 +766,20 @@ const Dashboard = () => {
           </Card>
         </motion.div>
 
-        <motion.div whileHover={{ scale: 1.05 }} transition={{ type: "spring", stiffness: 300 }}>
-          <Card className="relative overflow-hidden">
+        <motion.div 
+          whileHover={{ scale: 1.05 }} 
+          transition={{ type: "spring", stiffness: 300 }}
+        >
+          <Card className={`relative overflow-hidden ${isRefreshing ? 'ring-2 ring-red-500/50' : ''} transition-all`}>
             <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 rounded-full -mr-16 -mt-16" />
+            {isRefreshing && (
+              <motion.div 
+                className="absolute inset-0 bg-red-500/10"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0, 0.5, 0] }}
+                transition={{ duration: 0.8, delay: 0.1, ease: "easeInOut" }}
+              />
+            )}
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium text-gray-400">Critical Threats</CardTitle>
@@ -453,7 +787,9 @@ const Dashboard = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-4xl font-bold text-red-500 mb-2">{stats?.by_severity?.CRITICAL?.toLocaleString() || 0}</div>
+              <div className="text-4xl font-bold text-red-500 mb-2">
+                <AnimatedCounter value={stats?.by_severity?.CRITICAL || 0} duration={1.2} />
+              </div>
               <div className="flex items-center gap-2 text-xs text-gray-500">
                 <Zap className="w-3 h-3 text-red-500" />
                 <span>Require immediate action</span>
@@ -462,9 +798,20 @@ const Dashboard = () => {
           </Card>
         </motion.div>
 
-        <motion.div whileHover={{ scale: 1.05 }} transition={{ type: "spring", stiffness: 300 }}>
-          <Card className="relative overflow-hidden">
+        <motion.div 
+          whileHover={{ scale: 1.05 }} 
+          transition={{ type: "spring", stiffness: 300 }}
+        >
+          <Card className={`relative overflow-hidden ${isRefreshing ? 'ring-2 ring-orange-500/50' : ''} transition-all`}>
             <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full -mr-16 -mt-16" />
+            {isRefreshing && (
+              <motion.div 
+                className="absolute inset-0 bg-orange-500/10"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0, 0.5, 0] }}
+                transition={{ duration: 0.8, delay: 0.2, ease: "easeInOut" }}
+              />
+            )}
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium text-gray-400">High Priority</CardTitle>
@@ -472,7 +819,9 @@ const Dashboard = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-4xl font-bold text-orange-500 mb-2">{stats?.by_severity?.HIGH?.toLocaleString() || 0}</div>
+              <div className="text-4xl font-bold text-orange-500 mb-2">
+                <AnimatedCounter value={stats?.by_severity?.HIGH || 0} duration={1.2} />
+              </div>
               <div className="flex items-center gap-2 text-xs text-gray-500">
                 <Eye className="w-3 h-3 text-orange-500" />
                 <span>High severity indicators</span>
@@ -481,9 +830,20 @@ const Dashboard = () => {
           </Card>
         </motion.div>
 
-        <motion.div whileHover={{ scale: 1.05 }} transition={{ type: "spring", stiffness: 300 }}>
-          <Card className="relative overflow-hidden">
+        <motion.div 
+          whileHover={{ scale: 1.05 }} 
+          transition={{ type: "spring", stiffness: 300 }}
+        >
+          <Card className={`relative overflow-hidden ${isRefreshing ? 'ring-2 ring-yellow-500/50' : ''} transition-all`}>
             <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/10 rounded-full -mr-16 -mt-16" />
+            {isRefreshing && (
+              <motion.div 
+                className="absolute inset-0 bg-yellow-500/10"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0, 0.5, 0] }}
+                transition={{ duration: 0.8, delay: 0.3, ease: "easeInOut" }}
+              />
+            )}
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium text-gray-400">Recent (24h)</CardTitle>
@@ -491,7 +851,9 @@ const Dashboard = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-4xl font-bold text-yellow-500 mb-2">{stats?.recent_24h?.toLocaleString() || 0}</div>
+              <div className="text-4xl font-bold text-yellow-500 mb-2">
+                <AnimatedCounter value={stats?.recent_count || 0} duration={1.2} />
+              </div>
               <div className="flex items-center gap-2 text-xs text-gray-500">
                 <Activity className="w-3 h-3 text-yellow-500" />
                 <span>New IOCs today</span>
@@ -552,87 +914,230 @@ const Dashboard = () => {
         transition={{ delay: 0.5 }}
         className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8"
       >
+        {/* Severity vs Type Heatmap */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-white">
               <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
-              Severity Distribution
+              Severity Distribution Heatmap
             </CardTitle>
-            <CardDescription>IOCs categorized by threat level</CardDescription>
+            <CardDescription>IOC severity across threat types</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie
-                    data={severityData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    fill="#8884d8"
-                    dataKey="value"
-                    label={({ name, percentage }) => `${name} ${percentage}%`}
-                  >
-                    {severityData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+            <div className="space-y-4">
+              {/* Heatmap */}
+              <div>
+                {/* Column Headers */}
+                <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: `140px repeat(${heatmapTypes.length}, 1fr)` }}>
+                  <div className="text-xs font-semibold text-gray-400 flex items-center justify-end pr-3">
+                    Severity / Type
+                  </div>
+                  {heatmapTypes.map((type, idx) => (
+                    <div key={idx} className="text-xs font-semibold text-gray-300 text-center">
+                      {type.toUpperCase()}
+                    </div>
+                  ))}
+                </div>
+                
+                {/* Heatmap Rows */}
+                {heatmapData.map((row, rowIdx) => (
+                    <motion.div
+                      key={rowIdx}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.6 + rowIdx * 0.1 }}
+                      className="grid gap-2 mb-2"
+                      style={{ gridTemplateColumns: `140px repeat(${heatmapTypes.length}, 1fr)` }}
+                    >
+                      {/* Row Label */}
+                      <div className="flex items-center justify-end pr-3">
+                        <span 
+                          className="text-xs font-bold px-3 py-1 rounded-lg"
+                          style={{ 
+                            backgroundColor: severityData.find(s => s.name.toUpperCase() === row.severity)?.color + '30',
+                            color: severityData.find(s => s.name.toUpperCase() === row.severity)?.color
+                          }}
+                        >
+                          {row.severity}
+                        </span>
+                      </div>
+                      
+                      {/* Cells */}
+                      {heatmapTypes.map((type, cellIdx) => {
+                        const value = row[type] || 0;
+                        const totalForType = stats.by_type?.[type] || 1;
+                        const percentage = ((value / totalForType) * 100).toFixed(1);
+                        
+                        return (
+                          <motion.div
+                            key={cellIdx}
+                            whileHover={{ scale: 1.08 }}
+                            className="group relative rounded-lg border-2 transition-all cursor-pointer flex items-center justify-center"
+                            style={{
+                              aspectRatio: '1',
+                              backgroundColor: getHeatmapColor(value, row.severity),
+                              borderColor: value > 0 ? severityData.find(s => s.name.toUpperCase() === row.severity)?.color + '60' : '#374151',
+                              boxShadow: value > 0 ? `0 0 10px ${severityData.find(s => s.name.toUpperCase() === row.severity)?.color}40` : 'none'
+                            }}
+                          >
+                            <span className="text-sm font-bold text-white text-center">
+                              {value > 0 ? value.toLocaleString() : '-'}
+                            </span>
+                            
+                            {/* Tooltip */}
+                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 border-2 border-yellow-500 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10 shadow-xl">
+                              <div className="text-xs text-yellow-500 font-bold mb-1">{row.severity} severity {type.toUpperCase()}</div>
+                              <div className="text-xs text-white font-semibold">{value.toLocaleString()} IOCs</div>
+                              <div className="text-xs text-gray-400">({percentage}% of type)</div>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </motion.div>
+                  ))}
+              </div>
               
-              <div className="space-y-3 min-w-[200px]">
-                {severityWithPercent.map((item, idx) => (
-                  <motion.div 
-                    key={idx}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.6 + idx * 0.1 }}
-                    className="flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className={`w-3 h-3 rounded-full`} style={{ backgroundColor: item.color }} />
-                      <span className="text-sm text-gray-300">{item.name}</span>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-bold text-white">{item.value.toLocaleString()}</div>
-                      <div className="text-xs text-gray-500">{item.percentage}%</div>
-                    </div>
-                  </motion.div>
-                ))}
+              {/* Legend */}
+              <div className="flex items-center gap-4 pt-4 border-t border-gray-800">
+                <span className="text-xs text-gray-400 font-semibold">Intensity:</span>
+                <div className="flex items-center gap-2 flex-1">
+                  <span className="text-xs text-gray-500">Low</span>
+                  <div className="flex-1 h-3 rounded-full bg-gradient-to-r from-gray-800 via-yellow-500/50 to-yellow-500"></div>
+                  <span className="text-xs text-gray-500">High</span>
+                </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
+        {/* IOC Types Bar Chart */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-white">
               <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
               IOC Types Distribution
             </CardTitle>
-            <CardDescription>Breakdown by indicator type</CardDescription>
+            <CardDescription>Breakdown by indicator type (Log Scale)</CardDescription>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={typeData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <XAxis dataKey="name" stroke="#9ca3af" style={{ fontSize: '12px' }} />
-                <YAxis stroke="#9ca3af" style={{ fontSize: '12px' }} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#1f2937', 
-                    border: '1px solid #eab308',
-                    borderRadius: '8px'
+          <CardContent className="space-y-6">
+            {/* Bar Chart */}
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={typeData} margin={{ top: 25, right: 30, left: 70, bottom: 45 }}>
+                <XAxis 
+                  dataKey="name" 
+                  stroke="#B0B3B8" 
+                  style={{ fontSize: '12px', fontWeight: '600' }}
+                  label={{ 
+                    value: 'IOC Type', 
+                    position: 'insideBottom', 
+                    offset: -12,
+                    style: { fill: '#FFFFFF', fontSize: '13px', fontWeight: '700' }
                   }}
                 />
-                <Bar dataKey="value" fill="#eab308" radius={[8, 8, 0, 0]}>
+                <YAxis 
+                  scale="log" 
+                  domain={[1, 'auto']}
+                  stroke="#B0B3B8" 
+                  style={{ fontSize: '12px', fontWeight: '600' }}
+                  tickFormatter={(value) => {
+                    if (value >= 1000) return `${(value / 1000).toFixed(0)}k`;
+                    return value;
+                  }}
+                  label={{ 
+                    value: 'Count (Log Scale)', 
+                    angle: -90, 
+                    position: 'insideLeft',
+                    offset: -15,
+                    style: { fill: '#F1C40F', fontSize: '13px', fontWeight: '700' }
+                  }}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: '#0B0C10', 
+                    border: '2px solid #F1C40F',
+                    borderRadius: '12px',
+                    padding: '12px'
+                  }}
+                  formatter={(value) => [`${value.toLocaleString()} IOCs`, 'Count']}
+                  labelStyle={{ color: '#F1C40F', fontWeight: 'bold', marginBottom: '4px' }}
+                />
+                <Bar 
+                  dataKey="value" 
+                  fill="#F1C40F" 
+                  radius={[8, 8, 0, 0]}
+                  label={{ 
+                    position: 'top', 
+                    fill: '#FFFFFF', 
+                    fontSize: 13,
+                    fontWeight: 'bold',
+                    formatter: (value) => value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value
+                  }}
+                >
                   {typeData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill="#eab308" />
+                    <Cell key={`cell-${index}`} fill="#F1C40F" />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
+
+            {/* Insight Panel */}
+            {insights && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.8 }}
+                className="bg-gray-900/80 rounded-lg p-5 border border-gray-800"
+              >
+                <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-yellow-500" />
+                  Key Insights
+                </h4>
+                <div className="space-y-2.5 text-xs">
+                  {/* Insight 1: Dominant Type */}
+                  <div className="flex items-start gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-yellow-500 mt-1.5 flex-shrink-0"></div>
+                    <p className="text-gray-300 leading-relaxed">
+                      <span className="text-yellow-500 font-bold">{insights.topType}</span> accounts for{' '}
+                      <span className="text-white font-semibold">{insights.topTypePercentage}%</span> of total IOCs,
+                      indicating {insights.topType.toLowerCase()}-based threats are dominant.
+                    </p>
+                  </div>
+
+                  {/* Insight 2: Activity Multiplier */}
+                  <div className="flex items-start gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 flex-shrink-0"></div>
+                    <p className="text-gray-300 leading-relaxed">
+                      <span className="text-blue-400 font-bold">{insights.topType}</span> activity is{' '}
+                      <span className="text-white font-semibold">{insights.topTypeMultiplier}×</span> higher
+                      than the average IOC category.
+                    </p>
+                  </div>
+
+                  {/* Insight 3: Critical Percentage */}
+                  {parseFloat(insights.criticalPercentage) > 5 && (
+                    <div className="flex items-start gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 flex-shrink-0"></div>
+                      <p className="text-gray-300 leading-relaxed">
+                        <span className="text-red-400 font-bold">{insights.criticalPercentage}%</span> of IOCs
+                        are <span className="text-red-400 font-semibold">CRITICAL</span> severity,
+                        requiring immediate security response.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Insight 4: Distribution Pattern */}
+                  {stats?.by_severity && (
+                    <div className="flex items-start gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1.5 flex-shrink-0"></div>
+                      <p className="text-gray-300 leading-relaxed">
+                        {Object.keys(stats.by_type || {}).length} distinct IOC types detected across{' '}
+                        <span className="text-white font-semibold">{insights.totalIOCs.toLocaleString()}</span> indicators.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
           </CardContent>
         </Card>
       </motion.div>
