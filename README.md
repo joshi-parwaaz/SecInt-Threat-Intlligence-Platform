@@ -51,7 +51,7 @@ SecInt v2 automatically aggregates, enriches, and scores **17,500+ Indicators of
 
 ```bash
 # Clone repository
-git clone https://github.com/joshi-parwaaz/SecInt.git
+git clone https://github.com/Arsh-J/SecInt.git
 cd SecInt
 
 # Backend setup
