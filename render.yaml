@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: secint-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: MONGO_URI
+        sync: false          # Set in Render dashboard → from MongoDB Atlas
+      - key: OTX_API_KEY
+        sync: false          # Set in Render dashboard
+      - key: VIRUSTOTAL_API_KEY
+        sync: false          # Set in Render dashboard
+      - key: ABUSEIPDB_API_KEY
+        sync: false          # Set in Render dashboard
+      - key: URLHAUS_API_KEY
+        sync: false          # Optional
+      - key: CORS_ORIGINS
+        sync: false          # Set to your Vercel frontend URL e.g. https://secint.vercel.app
+      - key: REFRESH_INTERVAL_HOURS
+        value: "6"
+      - key: LOG_LEVEL
+        value: INFO

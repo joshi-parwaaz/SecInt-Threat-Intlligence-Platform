@@ -1,0 +1,24 @@
+# Backend requirements for SecInt v2 - Real-time Threat Intelligence Platform
+
+# FastAPI & web server
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+
+# Async HTTP client for API calls
+aiohttp==3.12.15
+
+# Database
+motor==3.3.2
+pymongo==4.6.0
+
+# Background scheduler (IOC auto-refresh every 6 hours)
+apscheduler==3.10.4
+
+# Data processing
+pandas==2.1.3
+
+# Utilities
+python-dotenv==1.0.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
