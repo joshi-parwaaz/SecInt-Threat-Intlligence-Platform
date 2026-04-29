@@ -222,20 +222,20 @@ const Dashboard = () => {
     setIsIngesting(true);
     try {
       const response = await fetch(API_BASE + '/api/ingestion/trigger', {
-        method: 'POST'
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
       });
-      const data = await response.json();
-      
-      if (response.ok) {
-        // Start polling for status
-        pollIngestionStatus();
-      } else {
-        alert(data.detail || 'Failed to start ingestion');
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        alert(data.detail || `Server error: ${response.status}`);
         setIsIngesting(false);
+        return;
       }
+      // Start polling for status
+      pollIngestionStatus();
     } catch (err) {
       console.error('Error triggering ingestion:', err);
-      alert('Failed to start ingestion');
+      alert('Could not reach the backend. Check that CORS_ORIGINS is set correctly on Render.');
       setIsIngesting(false);
     }
   };
@@ -278,31 +278,15 @@ const Dashboard = () => {
     poll();
   };
 
-  // Download Report
-  const downloadReport = async (format) => {
-    try {
-      let url = '';
-      if (format === 'csv') {
-        url = API_BASE + '/api/reports/download/csv';
-      } else if (format === 'json') {
-        url = API_BASE + '/api/reports/download/json';
-      } else if (format === 'html') {
-        url = API_BASE + '/api/reports/download/html';
-      }
-
-      const response = await fetch(url);
-      const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = downloadUrl;
-      a.download = `threat_report.${format}`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(downloadUrl);
-      document.body.removeChild(a);
-    } catch (err) {
-      console.error(`Error downloading ${format} report:`, err);
-    }
+  // Download Report — use direct navigation so the browser handles the download
+  // without a cross-origin blob fetch (avoids CORS preflight on binary responses)
+  const downloadReport = (format) => {
+    const urls = {
+      csv:  API_BASE + '/api/reports/download/csv',
+      json: API_BASE + '/api/reports/download/json',
+      html: API_BASE + '/api/reports/download/html',
+    };
+    if (urls[format]) window.open(urls[format], '_blank');
   };
 
   // Download Blocklist

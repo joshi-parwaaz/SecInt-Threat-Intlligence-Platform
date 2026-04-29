@@ -177,7 +177,7 @@ async def download_json_report(include_summary: bool = Query(True)):
         filename = f"secint_report_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
         
         return Response(
-            content=str(report_data).encode('utf-8'),
+            content=report_data.encode('utf-8'),
             media_type="application/json",
             headers={
                 "Content-Disposition": f"attachment; filename={filename}"
@@ -188,24 +188,22 @@ async def download_json_report(include_summary: bool = Query(True)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/download/html", response_class=HTMLResponse)
+@router.get("/download/html")
 async def download_html_report():
-    """
-    Download threat intelligence report in HTML format
-    
-    Returns:
-        HTML report for viewing in browser
-    """
     try:
         db_client = get_db_client()
         generator = create_report_generator(db_client)
-        
         html_content = await generator.generate_html_report()
-        
-        return HTMLResponse(content=html_content)
+        filename = f"secint_report_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.html"
+        return Response(
+            content=html_content.encode("utf-8"),
+            media_type="text/html",
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
+        )
     except Exception as e:
         logger.error(f"Failed to generate HTML report: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
 
 
 @router.get("/export/cef")

@@ -92,7 +92,7 @@ const LandingPage = () => {
   const threatLevels = [
     {
       level: "CRITICAL",
-      count: stats?.by_severity?.CRITICAL || 6,
+      count: stats?.by_severity?.CRITICAL ?? "—",
       description: "Immediate action required - Active malware campaigns and C2 infrastructure",
       color: "text-red-500",
       bgColor: "bg-red-500/10",
@@ -100,7 +100,7 @@ const LandingPage = () => {
     },
     {
       level: "HIGH",
-      count: stats?.by_severity?.HIGH || 27,
+      count: stats?.by_severity?.HIGH ?? "—",
       description: "High-priority threats - Known malicious domains and IPs with recent activity",
       color: "text-orange-500",
       bgColor: "bg-orange-500/10",
@@ -108,7 +108,7 @@ const LandingPage = () => {
     },
     {
       level: "MEDIUM",
-      count: stats?.by_severity?.MEDIUM || 46,
+      count: stats?.by_severity?.MEDIUM ?? "—",
       description: "Moderate threats - Suspicious indicators requiring investigation",
       color: "text-yellow-500",
       bgColor: "bg-yellow-500/10",
