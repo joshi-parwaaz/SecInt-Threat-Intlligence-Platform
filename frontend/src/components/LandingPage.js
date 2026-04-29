@@ -36,11 +36,8 @@ const LandingPage = () => {
         setStats(data);
       } catch (error) {
         console.error('Error fetching stats:', error);
-        // Fallback to default values if API fails
-        setStats({
-          total_iocs: 17517,
-          by_severity: { CRITICAL: 6, HIGH: 27, MEDIUM: 46 }
-        });
+        // Leave stats as null — show dashes rather than fake numbers
+        setStats(null);
       } finally {
         setLoading(false);
       }
@@ -53,9 +50,9 @@ const LandingPage = () => {
   }, []);
 
   const achievements = [
-    { number: stats?.total_iocs?.toLocaleString() || "Loading...", label: "Total IOCs" },
-    { number: stats?.by_severity?.CRITICAL?.toLocaleString() || "0", label: "Critical Threats" },
-    { number: stats?.by_severity?.HIGH?.toLocaleString() || "0", label: "High Threats" },
+    { number: stats?.total_iocs?.toLocaleString() || "—", label: "Total IOCs" },
+    { number: stats?.by_severity?.CRITICAL?.toLocaleString() || "—", label: "Critical Threats" },
+    { number: stats?.by_severity?.HIGH?.toLocaleString() || "—", label: "High Threats" },
     { number: "4", label: "Threat Feeds" },
   ];
 
@@ -413,7 +410,7 @@ const LandingPage = () => {
               Ready to Explore Threat Intelligence?
             </h2>
             <p className="text-xl text-gray-400 mb-8 max-w-2xl mx-auto">
-              Access 17,517 IOCs, analyze threat patterns, and integrate with your security infrastructure
+              Access {stats?.total_iocs?.toLocaleString() || 'thousands of'} IOCs, analyze threat patterns, and integrate with your security infrastructure
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
               <Button
