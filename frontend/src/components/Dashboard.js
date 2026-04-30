@@ -97,30 +97,30 @@ const Dashboard = () => {
     }
   };
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Bug Fix #2 — IOC list always empty
-  //
-  // The original fetchIOCs() closed over selectedType / selectedSeverity from
-  // the render in which it was defined.  When fetchData() called fetchIOCs()
-  // on first mount the state values were still the initial 'all'/'all' — that
-  // part was fine — but React's closure rules meant that the auto-refresh
-  // useEffect and the fetchData helper could easily call a stale version that
-  // never reflected updated filter state.
-  //
-  // Fix: accept explicit filter arguments with the current state as defaults.
-  // Every call site that wants the current filters can just call fetchIOCs()
-  // with no args; fetchData() now passes the values it holds at call time.
-  // ─────────────────────────────────────────────────────────────────────────
-  const fetchIOCs = async (typeFilter = selectedType, severityFilter = selectedSeverity) => {
+  // Fetch IOCs with filters
+  // BUG FIX #2: Root cause was that the original code sent ?ioc_type=all or
+  // ?severity=all to FastAPI. FastAPI validates these against strict Enum types
+  // (IOCType, SeverityLevel) and returns HTTP 422 Unprocessable Entity when
+  // it receives "all" — which is not a valid enum value. The fetch() call
+  // succeeded (no network error thrown), but data.iocs was undefined because
+  // the response body was a 422 error object, not the expected {iocs:[]} shape.
+  // Fix: Only append filter params when they hold a real enum value (not 'all').
+  // Also removed the trailing slash from /api/iocs/ → /api/iocs to be safe.
+  const fetchIOCs = async (typeFilter, severityFilter) => {
+    // Default to current state if no args passed (e.g. auto-refresh calls)
+    const type = typeFilter !== undefined ? typeFilter : selectedType;
+    const sev  = severityFilter !== undefined ? severityFilter : selectedSeverity;
     try {
       const params = new URLSearchParams();
-      if (typeFilter !== 'all') params.append('ioc_type', typeFilter);
-      if (severityFilter !== 'all') params.append('severity', severityFilter);
+      // NEVER send 'all' — FastAPI enum validation will return 422 and kill the list
+      if (type && type !== 'all') params.append('ioc_type', type);
+      if (sev  && sev  !== 'all') params.append('severity', sev);
       params.append('limit', '100');
 
       const response = await fetch(`${API_BASE}/api/iocs?${params}`);
       if (!response.ok) {
-        console.error('fetchIOCs HTTP error', response.status);
+        const errText = await response.text().catch(() => '');
+        console.error(`fetchIOCs failed [HTTP ${response.status}]:`, errText);
         return;
       }
       const data = await response.json();
@@ -143,8 +143,7 @@ const Dashboard = () => {
     try {
       await Promise.all([
         fetchStats(),
-        // Pass current filter values explicitly to avoid stale closure (Bug Fix #2)
-        fetchIOCs(selectedType, selectedSeverity),
+        fetchIOCs(selectedType, selectedSeverity), // pass explicit values — avoids stale closure
         fetchTopThreats(),
         fetchBlocklist(),
         fetchAPIHealth()
@@ -182,8 +181,7 @@ const Dashboard = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       fetchStats();
-      // Pass snapshot of current filter values into fetchIOCs to avoid stale closure
-      fetchIOCs(selectedType, selectedSeverity);
+      fetchIOCs(selectedType, selectedSeverity); // explicit args — stale-closure safe
       fetchTopThreats();
       fetchBlocklist();
     }, 30000);
