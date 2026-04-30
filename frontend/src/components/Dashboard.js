@@ -97,15 +97,32 @@ const Dashboard = () => {
     }
   };
 
-  // Fetch IOCs with filters
-  const fetchIOCs = async () => {
+  // ─────────────────────────────────────────────────────────────────────────
+  // Bug Fix #2 — IOC list always empty
+  //
+  // The original fetchIOCs() closed over selectedType / selectedSeverity from
+  // the render in which it was defined.  When fetchData() called fetchIOCs()
+  // on first mount the state values were still the initial 'all'/'all' — that
+  // part was fine — but React's closure rules meant that the auto-refresh
+  // useEffect and the fetchData helper could easily call a stale version that
+  // never reflected updated filter state.
+  //
+  // Fix: accept explicit filter arguments with the current state as defaults.
+  // Every call site that wants the current filters can just call fetchIOCs()
+  // with no args; fetchData() now passes the values it holds at call time.
+  // ─────────────────────────────────────────────────────────────────────────
+  const fetchIOCs = async (typeFilter = selectedType, severityFilter = selectedSeverity) => {
     try {
       const params = new URLSearchParams();
-      if (selectedType !== 'all') params.append('ioc_type', selectedType);
-      if (selectedSeverity !== 'all') params.append('severity', selectedSeverity);
+      if (typeFilter !== 'all') params.append('ioc_type', typeFilter);
+      if (severityFilter !== 'all') params.append('severity', severityFilter);
       params.append('limit', '100');
 
-      const response = await fetch(`${API_BASE}/api/iocs/?${params}`);
+      const response = await fetch(`${API_BASE}/api/iocs?${params}`);
+      if (!response.ok) {
+        console.error('fetchIOCs HTTP error', response.status);
+        return;
+      }
       const data = await response.json();
       setIocs(data.iocs || []);
     } catch (err) {
@@ -126,7 +143,8 @@ const Dashboard = () => {
     try {
       await Promise.all([
         fetchStats(),
-        fetchIOCs(),
+        // Pass current filter values explicitly to avoid stale closure (Bug Fix #2)
+        fetchIOCs(selectedType, selectedSeverity),
         fetchTopThreats(),
         fetchBlocklist(),
         fetchAPIHealth()
@@ -164,7 +182,8 @@ const Dashboard = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       fetchStats();
-      fetchIOCs();
+      // Pass snapshot of current filter values into fetchIOCs to avoid stale closure
+      fetchIOCs(selectedType, selectedSeverity);
       fetchTopThreats();
       fetchBlocklist();
     }, 30000);
