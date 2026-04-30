@@ -159,7 +159,7 @@ async def get_iocs(
 
     # Run count and fetch concurrently
     import asyncio
-    total_task = asyncio.create_task(collection.count_documents(query_filter))
+    total = await collection.count_documents(query_filter)
     cursor = (
         collection.find(query_filter, _LIST_PROJECTION)
         .sort("severity_score", -1)
@@ -168,7 +168,6 @@ async def get_iocs(
     )
     iocs_task = asyncio.create_task(cursor.to_list(length=limit))
 
-    total = await total_task
     iocs  = await iocs_task
 
     return {"iocs": _serialise(iocs), "total": total}
