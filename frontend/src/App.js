@@ -4,32 +4,20 @@ import Dashboard from './components/Dashboard';
 import LandingPage from './components/LandingPage';
 import { API_BASE } from './lib/api';
 
-
+// WakeUpPing: fires GET /health the instant the page loads so Render's
+// free-tier server begins its cold-start immediately — before the user
+// clicks Dashboard and waits for real data.
 function WakeUpPing() {
   useEffect(() => {
-    const ping = async () => {
-      try {
-        await fetch(`${API_BASE}/health`, {
-          method: 'GET',
-          // Don't wait long — we just want to send the TCP connection so
-          // Render begins the cold-start. The response doesn't matter here.
-          signal: AbortSignal.timeout(30_000),
-        });
-      } catch {
-        // Silently ignore — the backend may still be spinning up.
-        // Dashboard.js will retry with its own fetch calls.
-      }
-    };
-    ping();
-  }, []); // runs once when the app mounts (i.e. when Vercel page is opened)
-
-  return null; // renders nothing
+    fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(30_000) })
+      .catch(() => {}); // silence errors — server may still be waking up
+  }, []);
+  return null;
 }
 
 function App() {
   return (
     <Router>
-      {/* Wake-up ping fires the moment any page loads */}
       <WakeUpPing />
       <Routes>
         {/* Landing Page */}
@@ -44,7 +32,7 @@ function App() {
 
 function LandingPageWrapper() {
   const navigate = useNavigate();
-
+  
   return <LandingPage onEnter={() => navigate('/dashboard')} />;
 }
 

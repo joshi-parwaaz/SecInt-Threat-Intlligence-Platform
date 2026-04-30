@@ -98,35 +98,31 @@ const Dashboard = () => {
   };
 
   // Fetch IOCs with filters
-  // BUG FIX #2: Root cause was that the original code sent ?ioc_type=all or
-  // ?severity=all to FastAPI. FastAPI validates these against strict Enum types
-  // (IOCType, SeverityLevel) and returns HTTP 422 Unprocessable Entity when
-  // it receives "all" — which is not a valid enum value. The fetch() call
-  // succeeded (no network error thrown), but data.iocs was undefined because
-  // the response body was a 422 error object, not the expected {iocs:[]} shape.
-  // Fix: Only append filter params when they hold a real enum value (not 'all').
-  // Also removed the trailing slash from /api/iocs/ → /api/iocs to be safe.
+  // FIX: Accept explicit filter args so fetchData() never uses a stale closure.
+  // FIX: Never send the string "all" — FastAPI enum validation rejects it (422).
+  // FIX: Always use trailing slash /api/iocs/?  to avoid a 307 redirect that
+  //      strips CORS headers and silently empties the list.
   const fetchIOCs = async (typeFilter, severityFilter) => {
-    // Default to current state if no args passed (e.g. auto-refresh calls)
-    const type = typeFilter !== undefined ? typeFilter : selectedType;
+    const type = typeFilter  !== undefined ? typeFilter  : selectedType;
     const sev  = severityFilter !== undefined ? severityFilter : selectedSeverity;
     try {
       const params = new URLSearchParams();
-      // NEVER send 'all' — FastAPI enum validation will return 422 and kill the list
       if (type && type !== 'all') params.append('ioc_type', type);
       if (sev  && sev  !== 'all') params.append('severity', sev);
       params.append('limit', '100');
 
-      const response = await fetch(`${API_BASE}/api/iocs?${params}`);
+      // Trailing slash is intentional — avoids a 307 redirect from /api/iocs
+      // to /api/iocs/ which would strip CORS headers and block the request.
+      const response = await fetch(`${API_BASE}/api/iocs/?${params}`);
       if (!response.ok) {
-        const errText = await response.text().catch(() => '');
-        console.error(`fetchIOCs failed [HTTP ${response.status}]:`, errText);
+        const errText = await response.text().catch(() => '(no body)');
+        console.error(`[IOC list] HTTP ${response.status}:`, errText);
         return;
       }
       const data = await response.json();
       setIocs(data.iocs || []);
     } catch (err) {
-      console.error('Error fetching IOCs:', err);
+      console.error('[IOC list] fetch error:', err);
     }
   };
 
@@ -143,7 +139,7 @@ const Dashboard = () => {
     try {
       await Promise.all([
         fetchStats(),
-        fetchIOCs(selectedType, selectedSeverity), // pass explicit values — avoids stale closure
+        fetchIOCs(selectedType, selectedSeverity),
         fetchTopThreats(),
         fetchBlocklist(),
         fetchAPIHealth()
@@ -181,7 +177,7 @@ const Dashboard = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       fetchStats();
-      fetchIOCs(selectedType, selectedSeverity); // explicit args — stale-closure safe
+      fetchIOCs(selectedType, selectedSeverity);
       fetchTopThreats();
       fetchBlocklist();
     }, 30000);

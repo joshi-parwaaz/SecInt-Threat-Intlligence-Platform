@@ -141,6 +141,7 @@ async def get_ioc_stats():
     )
 
 
+@router.get("")
 @router.get("/")
 async def get_iocs(
     ioc_type: Optional[IOCType] = None,
@@ -152,24 +153,31 @@ async def get_iocs(
 ):
     """
     List IOCs with optional filters. Sorted by severity_score DESC.
-    Uses projection to reduce payload size.
+
+    BUG FIX A — Route registered on both "" and "/" so FastAPI never issues a
+    307 redirect for /api/iocs vs /api/iocs/.  The 307 redirect response does
+    not carry CORS headers, which caused browsers to block the follow-up
+    request silently; fetch() caught the CORS error, fell into the except
+    branch, and left iocs=[].
+
+    BUG FIX B — Removed asyncio.create_task() around Motor cursor.to_list().
+    Motor cursors are not thread-safe across task boundaries; wrapping them in
+    create_task() created a race where the cursor could be garbage-collected or
+    exhausted before the task ran, returning an empty list even when data
+    exists.  Sequential awaits are correct and fast enough for this use-case.
     """
     collection = get_collection("iocs")
     query_filter = _build_filter(ioc_type, severity, source, min_severity)
 
-    # Run count and fetch concurrently
-    import asyncio
-    total_task = asyncio.create_task(collection.count_documents(query_filter))
-    cursor = (
+    # Sequential awaits — Motor cursors must not cross asyncio task boundaries
+    total = await collection.count_documents(query_filter)
+    iocs = await (
         collection.find(query_filter, _LIST_PROJECTION)
         .sort("severity_score", -1)
         .skip(offset)
         .limit(limit)
+        .to_list(length=limit)
     )
-    iocs_task = asyncio.create_task(cursor.to_list(length=limit))
-
-    total = await total_task
-    iocs  = await iocs_task
 
     return {"iocs": _serialise(iocs), "total": total}
 
