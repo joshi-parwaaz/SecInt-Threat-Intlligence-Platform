@@ -105,7 +105,7 @@ const Dashboard = () => {
       if (selectedSeverity !== 'all') params.append('severity', selectedSeverity);
       params.append('limit', '100');
 
-      const response = await fetch(`${API_BASE}/api/iocs/?${params}`);
+      const response = await fetch(`${API_BASE}/api/iocs?${params}`);
       const data = await response.json();
       setIocs(data.iocs || []);
     } catch (err) {
